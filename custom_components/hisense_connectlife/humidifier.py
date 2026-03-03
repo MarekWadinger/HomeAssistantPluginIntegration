@@ -214,7 +214,6 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
 
     @property
     def available(self) -> bool:
-        # return True
         #水箱故障触发时禁用当前除湿机
         if 'f_e_waterfull' in self._device.failed_data:
             return False

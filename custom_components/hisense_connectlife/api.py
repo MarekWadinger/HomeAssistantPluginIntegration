@@ -1,40 +1,45 @@
 """API client for Hisense ConnectLife."""
 from __future__ import annotations
 
-import logging
+import base64
+import hashlib
+import hmac
 import json
+import logging
+import re
 import time
 import uuid
-import hashlib
-import base64
-from typing import Any, Dict, List, Callable
-import zoneinfo
 from datetime import datetime, timedelta
-import pytz
-import re
-import hmac
+from typing import Any, Callable
+
 import aiohttp
+import pytz
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
 
 from .const import (
     API_BASE_URL,
+    API_DEVICE_CONTROL,
     API_DEVICE_LIST,
+    API_GET_HOUR_POWER,
     API_GET_PROPERTY_LTST,
     API_QUERY_STATIC_DATA,
-    API_DEVICE_CONTROL,
-    StatusKey,
+    API_SELF_CHECK,
     CLIENT_ID,
     CLIENT_SECRET,
-    DeviceType,
-    DEVICE_TYPES, DOMAIN, API_GET_HOUR_POWER, API_SELF_CHECK,
+    DOMAIN,
+)
+from .devices import (
+    BaseBeanParser,
+    BaseDeviceParser,
+    Humidity007Parser,
+    Split006299Parser,
+    SplitWater035699Parser,
+    get_device_parser,
 )
 from .devices.base import DeviceAttribute
+from .models import DeviceInfo, HisenseApiError
 from .oauth2 import OAuth2Session
 from .websocket import HisenseWebSocket
-from .devices import get_device_parser, BaseBeanParser, BaseDeviceParser, SplitWater035699Parser, Humidity007Parser, \
-    Split006299Parser
-from .models import DeviceInfo, HisenseApiError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -312,6 +317,7 @@ class HisenseApiClient:
         endpoint: str,
         data: dict | None = None,
         headers: dict | None = None,
+        _retry: bool = False,
     ) -> dict:
         """Make an API request."""
         _LOGGER.debug("Making API request: %s %s", method, endpoint)
@@ -415,12 +421,11 @@ class HisenseApiClient:
                 _LOGGER.debug("Headers: %s", dict(resp.headers))
                 _LOGGER.debug("Body: %s", response_text)
                 
-                # if resp.status == 401:
-                #     _LOGGER.warning("Token expired, refreshing...")
-                #     await self.oauth_session.async_ensure_token_valid()
-                #     # Retry the request once
-                #     return await self._api_request(method, endpoint, data, headers)
-                    
+                if resp.status == 401 and not _retry:
+                    _LOGGER.warning("Token expired, refreshing...")
+                    await self.oauth_session.async_ensure_token_valid()
+                    return await self._api_request(method, endpoint, data, headers, _retry=True)
+
                 resp.raise_for_status()
                 
                 try:
@@ -435,7 +440,6 @@ class HisenseApiClient:
                 if response_data.get("resultCode") != 0:
                     error_msg = response_data.get("msg", "Unknown error")
                     raise HisenseApiError(f"API error: {error_msg}")
-                # _LOGGER.debug("API response: %s", json.dumps(response_data, indent=2))    
                 return response_data
                 
         except aiohttp.ClientError as err:
@@ -558,53 +562,53 @@ class HisenseApiClient:
                         property_keys = {prop.get('propertyKey') for prop in propertyList if 'propertyKey' in prop}
                         if deviceTypeCode == "009":#分体空调
                             if "99" not in deviceFeatureCode:
-                                # _LOGGER.debug("009Ddevice feature code is :%s,and status = :%s", deviceFeatureCode,
-                                #               property_keys)
+                                _LOGGER.debug("009Ddevice feature code is :%s,and status = :%s", deviceFeatureCode,
+                                              property_keys)
                                 target_keys = {'f_power_display', 'f_cool_qvalue', 'f_heat_qvalue'}
                                 if target_keys & property_keys:
                                     has_power = True
                             else:
-                                # _LOGGER.debug("009Ddevice feature code is :%s,and static_data = :%s",deviceFeatureCode,self.static_data[device.device_id])
+                                _LOGGER.debug("009Ddevice feature code is :%s,and static_data = :%s",deviceFeatureCode,self.static_data[device.device_id])
                                 if self.static_data[device.device_id].get("Power_function") == "1" or self.static_data.get("f_cool_or_heat_qvalue") == "1":
                                     has_power = True
                         elif deviceTypeCode in ['008','006']:#窗机 移动空调
                             if "99" not in deviceFeatureCode:
-                                # _LOGGER.debug("008 006Ddevice feature code is :%s,and status = :%s", deviceFeatureCode,
-                                #               property_keys)
+                                _LOGGER.debug("008 006Ddevice feature code is :%s,and status = :%s", deviceFeatureCode,
+                                              property_keys)
                                 if 'f_power_display' in property_keys:
                                     has_power = True
                             else:
-                                # _LOGGER.debug("008 006Ddevice feature code is :%s,and static_data = :%s",deviceFeatureCode,self.static_data[device.device_id])
+                                _LOGGER.debug("008 006Ddevice feature code is :%s,and static_data = :%s",deviceFeatureCode,self.static_data[device.device_id])
                                 if self.static_data[device.device_id].get("Power_function") == "1" :
                                     has_power = True
 
                         elif deviceTypeCode == "007":#除湿机
                             if "99" not in deviceFeatureCode:
-                                # _LOGGER.debug("007Ddevice feature code is :%s,and status = :%s", deviceFeatureCode,
-                                #               property_keys)
+                                _LOGGER.debug("007Ddevice feature code is :%s,and status = :%s", deviceFeatureCode,
+                                              property_keys)
                                 if 'f_power_display' in property_keys:
                                     has_power = True
                             else:
-                                # _LOGGER.debug("007Ddevice feature code is :%s,and static_data = :%s",deviceFeatureCode,self.static_data[device.device_id])
+                                _LOGGER.debug("007Ddevice feature code is :%s,and static_data = :%s",deviceFeatureCode,self.static_data[device.device_id])
                                 if self.static_data[device.device_id].get("Power_function") == "1" :
                                     has_power = True
                         else:
-                            # _LOGGER.debug("Ddevice feature code is :%s,and status = :%s", deviceFeatureCode,
-                            #               property_keys)
+                            _LOGGER.debug("Ddevice feature code is :%s,and status = :%s", deviceFeatureCode,
+                                          property_keys)
                             target_keys = {'f_power_display', 'f_cool_qvalue', 'f_heat_qvalue'}
                             if target_keys & property_keys:
                                 has_power = True
 
-                        # else:
-                        #     if "99" not in deviceFeatureCode:
-                        #         _LOGGER.debug("Ddevice feature code is :%s,and status = :%s and has_power:%s", deviceFeatureCode,
-                        #                       device.status,"f_power_display" in device.status)
-                        #         if "f_power_display" in device.status:
-                        #             has_power = True
-                        #     else:
-                        #         _LOGGER.debug("Ddevice feature code is :%s,and static_data = :%s",deviceFeatureCode,self.static_data)
-                        #         if self.static_data.get("Power_function") == 1 or self.static_data.get("Power_detection") == 1:
-                        #             has_power = True
+                            else:
+                                if "99" not in deviceFeatureCode:
+                                    _LOGGER.debug("Ddevice feature code is :%s,and status = :%s and has_power:%s", deviceFeatureCode,
+                                                device.status,"f_power_display" in device.status)
+                                    if "f_power_display" in device.status:
+                                        has_power = True
+                                else:
+                                    _LOGGER.debug("Ddevice feature code is :%s,and static_data = :%s",deviceFeatureCode,self.static_data)
+                                    if self.static_data.get("Power_function") == 1 or self.static_data.get("Power_detection") == 1:
+                                        has_power = True
 
                         if has_power:
                             current_date = datetime.now().date().isoformat()
@@ -634,7 +638,6 @@ class HisenseApiClient:
                             data, failed_data)
                         if failed_data:
                             failed_list = [item.get("statusKey") for item in failed_data]
-                            # self.failed_data[device.device_id] = failed_list
                             device.failed_data = failed_list
                             _LOGGER.debug(
                                 "Static data for failed_list %s: 完整自检数据 %s: 单纯故障数据 %s: 取出所有的key %s",

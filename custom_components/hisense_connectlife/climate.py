@@ -125,7 +125,6 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
             | ClimateEntityFeature.SWING_MODE
             | ClimateEntityFeature.TURN_ON
             | ClimateEntityFeature.TURN_OFF
-        # | ClimateEntityFeature.PRESET_MODE  # 添加预设模式支持
     )
 
     def __init__(
@@ -168,9 +167,6 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
                 self._setup_hvac_modes()
                 self._setup_fan_modes()
                 self._setup_swing_modes()
-                # 预设模式
-                # self._attr_preset_mode = None
-                # self._attr_preset_modes = ["eco", "away", "comfort", "sleep"]
             except Exception as err:
                 _LOGGER.error("Failed to get device parser: %s", err)
                 self._parser = None
@@ -239,13 +235,6 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
 
         if not hasattr(self, '_attr_swing_modes'):
             self._attr_swing_modes = [SWING_OFF, SWING_VERTICAL]
-
-    # async def async_set_preset_mode(self, preset_mode: str) -> None:
-    #     """设置预设模式。"""
-    #     if preset_mode not in self.preset_modes:
-    #         raise ValueError(f"Invalid preset mode: {preset_mode}")
-    #     self._attr_preset_mode = preset_mode
-    #     self.async_write_ha_state()
 
     def _setup_hvac_modes(self):
         """Set up available HVAC modes based on device capabilities."""
@@ -350,7 +339,7 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
             if SWING_VERTICAL in swing_modes:
                 if left_and_right == '1':
                     swing_modes.append(SWING_HORIZONTAL)
-                    # swing_modes.append(SWING_BOTH)
+                    swing_modes.append(SWING_BOTH)
             else:
                 if left_and_right == '1':
                     swing_modes.append(SWING_HORIZONTAL)
@@ -498,8 +487,8 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
             return SWING_VERTICAL
         elif (not vertical_swing or vertical_swing == "0") and horizontal_swing == "1":
             return SWING_HORIZONTAL
-        # elif vertical_swing == "1" and horizontal_swing == "1":
-        #     return SWING_BOTH
+        elif vertical_swing == "1" and horizontal_swing == "1":
+            return SWING_BOTH
 
         # Default to off if we can't determine the mode
         return SWING_OFF
@@ -530,10 +519,6 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
         # 在除湿模式下禁止设置风速
         if current_mode == HVACMode.DRY:
             features &= ~ClimateEntityFeature.FAN_MODE
-
-        # # 在仅送风模式下隐藏风速设置
-        # if current_mode == HVACMode.FAN_ONLY:
-        #     features &= ~ClimateEntityFeature.FAN_MODE
 
         return features
 
@@ -703,9 +688,9 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
             elif swing_mode == SWING_HORIZONTAL:
                 properties[StatusKey.SWING] = "0"
                 properties["t_left_right"] = "1"
-            # elif swing_mode == SWING_BOTH:
-            #     properties[StatusKey.SWING] = "1"
-            #     properties["t_left_right"] = "1"
+            elif swing_mode == SWING_BOTH:
+                properties[StatusKey.SWING] = "1"
+                properties["t_left_right"] = "1"
 
             # Check which properties are supported by the device
             if hasattr(self, '_parser') and self._parser:

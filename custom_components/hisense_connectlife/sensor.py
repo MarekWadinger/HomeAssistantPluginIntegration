@@ -33,15 +33,15 @@ _LOGGER = logging.getLogger(__name__)
 
 # Define sensor types
 SENSOR_TYPES = {
-    # "indoor_temperature": {
-    #     "key": StatusKey.TEMPERATURE,
-    #     "name": "Indoor Temperature",
-    #     "icon": "mdi:thermometer",
-    #     "device_class": SensorDeviceClass.TEMPERATURE,
-    #     "state_class": SensorStateClass.MEASUREMENT,
-    #     "unit": UnitOfTemperature.CELSIUS,
-    #     "description": "Current indoor temperature"
-    # },
+    "indoor_temperature": {
+        "key": StatusKey.TEMPERATURE,
+        "name": "Indoor Temperature",
+        "icon": "mdi:thermometer",
+        "device_class": SensorDeviceClass.TEMPERATURE,
+        "state_class": SensorStateClass.MEASUREMENT,
+        "unit": UnitOfTemperature.CELSIUS,
+        "description": "Current indoor temperature"
+    },
     "power_consumption": {
         "key": StatusKey.CONSUMPTION,  # 使用设备特定的键名
         "name": "Power Consumption",
@@ -60,15 +60,15 @@ SENSOR_TYPES = {
         "unit": "%",  # 使用百分比作为单位
         "description": "Current indoor humidity"  # 更新描述
     },
-    # "water_tank_temp": {
-    #     "key": StatusKey.WATER_TANK_TEMP,  # 使用设备特定的键名
-    #     "name": "Water Tank Temp",  # 水箱温度
-    #     "icon": "mdi:thermometer",  # 使用温度相关的图标
-    #     "device_class": SensorDeviceClass.TEMPERATURE,  # 使用正确的设备类
-    #     "state_class": SensorStateClass.MEASUREMENT,  # 使用正确的状态类
-    #     "unit": UnitOfTemperature.CELSIUS,  # 使用摄氏度作为单位
-    #     "description": "Current water tank temperature"  # 更新描述
-    # },
+    "water_tank_temp": {
+        "key": StatusKey.WATER_TANK_TEMP,
+        "name": "Water Tank Temp",
+        "icon": "mdi:thermometer",
+        "device_class": SensorDeviceClass.TEMPERATURE,
+        "state_class": SensorStateClass.MEASUREMENT,
+        "unit": UnitOfTemperature.CELSIUS,
+        "description": "Current water tank temperature"
+    },
     "in_water_temp": {
         "key": StatusKey.IN_WATER_TEMP,  # 使用设备特定的键名
         "name": "In Water Temp",  # 进水口温度
@@ -698,7 +698,7 @@ async def async_setup_entry(
                         _LOGGER.info("获取到静态数据: %s: %s", device.feature_code, static_data)
                         if static_data is not None:
                             hasHumidity = static_data.get("f_humidity")
-                            if sensor_info["key"] == StatusKey.FHUMIDITY and hasHumidity != "1":
+                            if sensor_info["key"] == StatusKey.FHUMIDITY and hasHumidity == "0":
                                 continue
 
                         # 故障传感器特殊处理：值为0或None时跳过

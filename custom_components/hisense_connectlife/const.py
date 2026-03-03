@@ -27,31 +27,13 @@ ATTR_WATER_TANK_TEMP = "water_tank_temperature"
 ATTR_ZONE_TEMPERATURE = "zone_temperature"
 ATTR_AC_TYPE = "ac_type"
 
-# # 测试环境
-# OAUTH2_AUTHORIZE = "https://test-oauth.hijuconn.com/login"
-# OAUTH2_TOKEN = "https://test-oauth.hijuconn.com/oauth/token"
-# WEBSOCKET_URL = "wss://test-clife-eu-gateway.hijuconn.com/msg/get_msg_and_channels"
-# API_BASE_URL = "https://test-juapi-3rd.hijuconn.com"
-
 # 正式环境
 OAUTH2_AUTHORIZE = "https://oauth.hijuconn.com/login"
 OAUTH2_TOKEN = "https://oauth.hijuconn.com/oauth/token"
 WEBSOCKET_URL = "wss://clife-eu-gateway.hijuconn.com/msg/get_msg_and_channels"
 API_BASE_URL = "https://juapi-3rd.hijuconn.com"
 
-# OAuth2 Configuration
-# OAUTH2_AUTHORIZE = "https://test-oauth.hijuconn.com/login"
-# OAUTH2_TOKEN = "https://test-oauth.hijuconn.com/oauth/token"
-
-# WebSocket
-# WEBSOCKET_URL = "wss://clife-eu-gateway.hijuconn.com/msg/get_msg_and_channels"
-# WEBSOCKET_URL = "wss://test-clife-eu-gateway.hijuconn.com/msg/get_msg_and_channels"
 WEBSOCKET_RECONNECT_INTERVAL = 30  # seconds
-
-# API Configuration
-# API_BASE_URL = "https://test-clife-eu-gateway.hijuconn.com"
-# API_BASE_URL = "https://test-juapi.hijuconn.com"
-# API_BASE_URL = "https://test-juapi-3rd.hijuconn.com"
 
 API_DEVICE_LIST = "/clife-svc/pu/get_device_status_list"
 API_GET_PROPERTY_LTST = "/clife-svc/get_property_list"#获取设备属性列表

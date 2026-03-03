@@ -21,10 +21,6 @@ _LOGGER = logging.getLogger(__name__)
 class HisenseOptionsFlowHandler(OptionsFlow):
     """Handle Hisense AC options."""
 
-    def __init__(self, config_entry: ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
-
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Manage options."""
         errors = {}
@@ -183,4 +179,4 @@ class OAuth2FlowHandler(
     @callback
     def async_get_options_flow(config_entry: ConfigEntry) -> HisenseOptionsFlowHandler:
         """Get the options flow for this handler."""
-        return HisenseOptionsFlowHandler(config_entry)
+        return HisenseOptionsFlowHandler()

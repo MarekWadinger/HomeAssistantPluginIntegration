@@ -7,9 +7,12 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers.update_coordinator import (
+    DataUpdateCoordinator,
+    UpdateFailed,
+)
 
-from .api import HisenseApiClient, DeviceInfo
+from .api import DeviceInfo, HisenseApiClient
 from .const import UPDATE_INTERVAL
 from .websocket import HisenseWebSocket
 
@@ -140,7 +143,7 @@ class HisenseACPluginDataUpdateCoordinator(DataUpdateCoordinator):
             result = await self.api_client.async_control_device(puid=puid, properties=properties)
             _LOGGER.debug("Control result: %s", result)
             # Refresh device status immediately after control
-            # await self.async_refresh_device(puid)
+            await self.async_refresh_device(puid)
             
             _LOGGER.info(
                 "Successfully controlled device %s: %s",
@@ -188,8 +191,8 @@ class HisenseACPluginDataUpdateCoordinator(DataUpdateCoordinator):
     @callback
     def _handle_ws_message(self, message: dict[str, Any]) -> None:
         """Handle websocket message."""
-        import json
         import base64
+        import json
 
         _LOGGER.debug("Starting to handle websocket message: %s", message)
         try:

@@ -45,15 +45,14 @@ SWITCH_TYPES = {
         "icon_on": "mdi:fire",
         "icon_off": "mdi:fire-off",
         "description": "Toggle 8heat mode"
+    },
+    "eco_mode": {
+        "key": StatusKey.ECO,
+        "name": "Eco Mode",
+        "icon_on": "mdi:leaf",
+        "icon_off": "mdi:leaf-off",
+        "description": "Toggle eco mode"
     }
-    # ,
-    # "eco_mode": {
-    #     "key": StatusKey.ECO,
-    #     "name": "Eco Mode",
-    #     "icon_on": "mdi:leaf",
-    #     "icon_off": "mdi:leaf-off",
-    #     "description": "Toggle eco mode"
-    # }
 }
 
 async def async_setup_entry(
@@ -262,37 +261,12 @@ class HisenseSwitch(CoordinatorEntity, SwitchEntity):
         _LOGGER.info("设备状态变化事件: %s", event.data)
         new_state = event.data.get("new_state")
         if new_state:
-            # 动态更新实体名称
-            # self._update_entity_name()
             # 使用 hass.add_job 安全地调度更新到事件循环线程
             self.hass.add_job(self._async_schedule_update)
 
     async def _async_schedule_update(self):
         """异步调度更新实体状态。"""
-        await self.async_schedule_update_ha_state(True)
-
-    # def _update_entity_name(self):
-    #     """根据设备状态动态更新实体名称。"""
-    #     hass = self.hass
-    #     current_lang = hass.config.language
-    #     translations = hass.data.get(f"{DOMAIN}.translations", {}).get(current_lang, {})
-    #
-    #     # 基础翻译键
-    #     translation_key = self._switch_type
-    #
-    #     # 特殊处理强力模式名称：根据当前模式动态调整翻译键
-    #     if self._switch_type == "rapid_mode":
-    #         current_mode = self._device.get_status_value(StatusKey.MODE) if self._device else None
-    #         _LOGGER.info("当前模式: %s", current_mode)
-    #         if current_mode == "2":  # 假设 "1" 对应制冷模式（需根据实际 StatusKey 的值调整）
-    #             translation_key = "rapid_mode_cold"
-    #         elif current_mode == "1":  # 假设 "2" 对应制热模式（需根据实际 StatusKey 的值调整）
-    #             translation_key = "rapid_mode_heat"
-    #     _LOGGER.info("翻译键: %s", translation_key)
-    #     # 获取翻译后的名称
-    #     translated_name = translations.get(translation_key, self._switch_info["name"])
-    #     _LOGGER.info("翻译后的名称: %s", translated_name)
-    #     self._attr_name = translated_name
+        self.async_schedule_update_ha_state(True)
 
     @property
     def name(self) -> str:
@@ -471,4 +445,4 @@ class HisenseSwitch(CoordinatorEntity, SwitchEntity):
             )
         else:
             # 正常更新状态
-            await self.async_schedule_update_ha_state(True)
+            self.async_schedule_update_ha_state(True)
