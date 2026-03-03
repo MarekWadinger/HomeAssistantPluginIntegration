@@ -1,17 +1,14 @@
 """Constants for the Hisense AC Plugin integration."""
-from typing import Final, Dict, Any, NamedTuple
+
+from typing import NamedTuple
 from dataclasses import dataclass
 from homeassistant.components.climate import ClimateEntityFeature, HVACMode
 from homeassistant.components.climate.const import (
-    ATTR_HVAC_MODE,
     DEFAULT_MAX_TEMP,
     DEFAULT_MIN_TEMP,
     SWING_OFF,
     SWING_VERTICAL,
-    SWING_HORIZONTAL,
-    SWING_BOTH,
 )
-from homeassistant.const import ATTR_TEMPERATURE, Platform
 
 DOMAIN = "hisense_connectlife"
 DOMAINW = "hisense_we_plugin"
@@ -36,14 +33,18 @@ API_BASE_URL = "https://juapi-3rd.hijuconn.com"
 WEBSOCKET_RECONNECT_INTERVAL = 30  # seconds
 
 API_DEVICE_LIST = "/clife-svc/pu/get_device_status_list"
-API_GET_PROPERTY_LTST = "/clife-svc/get_property_list"#获取设备属性列表
-API_QUERY_STATIC_DATA = "/clife-svc/pu/query_static_data"#使用puId获取设备属性列表
+API_GET_PROPERTY_LTST = "/clife-svc/get_property_list"  # 获取设备属性列表
+API_QUERY_STATIC_DATA = (
+    "/clife-svc/pu/query_static_data"  # 使用puId获取设备属性列表
+)
 API_DEVICE_CONTROL = "/device/pu/property/set"
-API_SELF_CHECK = "/basic/self_check/info"#获取故障信息
-API_GET_HOUR_POWER = "/clife-svc/pu/get_hour_power"#获取电量信息
+API_SELF_CHECK = "/basic/self_check/info"  # 获取故障信息
+API_GET_HOUR_POWER = "/clife-svc/pu/get_hour_power"  # 获取电量信息
 
 CLIENT_ID = "9793620883275788"
-CLIENT_SECRET = "7h1m3gZVlILyBvIFBNmzXwoFYLhkGqG9NQd2jBzuZCqJKCTyCtYwQtXi4tVBjg9B"
+CLIENT_SECRET = (
+    "7h1m3gZVlILyBvIFBNmzXwoFYLhkGqG9NQd2jBzuZCqJKCTyCtYwQtXi4tVBjg9B"
+)
 
 # Token settings
 TOKEN_EXPIRY_MARGIN = 60  # seconds before token expiry to refresh
@@ -56,12 +57,16 @@ MIN_TEMP = 16
 MAX_TEMP = 30
 MIN_TEMP_WATER = 16
 MAX_TEMP_WATER = 30
+
+
 # Device Types
 class DeviceType(NamedTuple):
     """Device type definition."""
+
     type_code: str
     feature_code: str
     description: str
+
 
 # Known device types
 DEVICE_TYPES = {
@@ -72,9 +77,11 @@ DEVICE_TYPES = {
     # Add more device types here as needed
 }
 
+
 # Status Keys
 class StatusKey:
     """Status keys for device properties."""
+
     POWER = "t_power"
     MODE = "t_work_mode"  # Changed from t_mode to t_work_mode
     FAN_SPEED = "t_fan_speed"
@@ -158,7 +165,9 @@ class StatusKey:
     F_E_TEMPFAULT_MIXEDWATER_TIP = "f_e_tempfault_mixedwater_tip"
     F_E_TEMPFAULT_BALANCE_WATERTANK_TIP = "f_e_tempfault_balance_watertank_tip"
     F_E_TEMPFAULT_EHEATING_OUTLET_TIP = "f_e_tempfault_eheating_outlet_tip"
-    F_E_TEMPFAULT_REFRIGERANT_OUTLET_TIP = "f_e_tempfault_refrigerant_outlet_tip"
+    F_E_TEMPFAULT_REFRIGERANT_OUTLET_TIP = (
+        "f_e_tempfault_refrigerant_outlet_tip"
+    )
     F_E_TEMPFAULT_REFRIGERANT_INLET_TIP = "f_e_tempfault_refrigerant_inlet_tip"
     F_E_INWATERPUMP_TIP = "f_e_inwaterpump_tip"
     F_E_OUTEEPROM_TIP = "f_e_outeeprom_tip"
@@ -172,7 +181,7 @@ MODE_FAN_ONLY = "fan_only"
 MODE_HEAT = "heat"
 MODE_ECO = "eco"
 MODE_BOOST = "boost"
-OPERATION_MODE_ECO  = "eco"
+OPERATION_MODE_ECO = "eco"
 OPERATION_MODE_VACATION = "vacation"
 # Fan Modes
 FAN_AUTO = "auto"
@@ -184,15 +193,19 @@ FAN_HIGH = "high"
 FAN_ULTRA_HIGH = "ultra_high"
 SFAN_ULTRA_HIGH = "中高"
 
+
 # Message Types
 class MessageType:
     """Message type constants."""
+
     DEVICE_STATUS = "status_devicestatus"
     DEVICE_NOTIFY = "device_to_app_notify"
+
 
 # AC Types
 class ACType:
     """AC type constants."""
+
     SPLIT_AC = "split_ac"
     WINDOW_AC = "window_ac"
     PORTABLE_AC = "portable_ac"
@@ -201,9 +214,11 @@ class ACType:
     DUCKED_TYPE_AC = "ducked_type_ac"
     DHW = "dhw"
 
+
 @dataclass
 class DeviceConfiguration:
     """Device configuration class."""
+
     min_temp: float = DEFAULT_MIN_TEMP
     max_temp: float = DEFAULT_MAX_TEMP
     target_temp_step: float = 1.0

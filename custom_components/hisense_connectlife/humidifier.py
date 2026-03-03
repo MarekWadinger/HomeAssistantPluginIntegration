@@ -1,4 +1,5 @@
 """Platform for Hisense Dehumidifier integration."""
+
 from __future__ import annotations
 
 import logging
@@ -38,16 +39,21 @@ OPERATION_DEHUMIDIFIER_MAP = {
     "2": STATE_AUTO,
     "3": STATE_DRY,
 }
-REVERSE_OPERATION_DEHUMIDIFIER_MAP = {v: k for k, v in OPERATION_DEHUMIDIFIER_MAP.items()}
+REVERSE_OPERATION_DEHUMIDIFIER_MAP = {
+    v: k for k, v in OPERATION_DEHUMIDIFIER_MAP.items()
+}
+
 
 async def async_setup_entry(
-        hass: HomeAssistant,
-        config_entry: ConfigEntry,
-        async_add_entities: AddEntitiesCallback,
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the Hisense Dehumidifier platform."""
     _LOGGER.debug("Dehumidifier data start")
-    coordinator: HisenseACPluginDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
+    coordinator: HisenseACPluginDataUpdateCoordinator = hass.data[DOMAIN][
+        config_entry.entry_id
+    ]
 
     try:
         # Trigger initial data update
@@ -68,16 +74,16 @@ async def async_setup_entry(
                     "Adding dehumidifier entity for device: %s (type: %s-%s)",
                     device.name,
                     device.type_code,
-                    device.feature_code
+                    device.feature_code,
                 )
                 entity = HisenseDehumidifier(coordinator, device)
                 entities.append(entity)
             else:
                 _LOGGER.warning(
                     "Skipping unsupported device: %s-%s (%s)",
-                    getattr(device, 'type_code', None),
-                    getattr(device, 'feature_code', None),
-                    getattr(device, 'name', None)
+                    getattr(device, "type_code", None),
+                    getattr(device, "feature_code", None),
+                    getattr(device, "name", None),
                 )
         if entities:
             async_add_entities(entities)
@@ -88,6 +94,7 @@ async def async_setup_entry(
         _LOGGER.error("Failed to setup dehumidifier platform: %s", err)
         raise
 
+
 class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
     """Hisense Dehumidifier entity implementation."""
 
@@ -97,13 +104,15 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
     _attr_device_class = HumidifierDeviceClass.DEHUMIDIFIER  # 设置为除湿器
 
     def __init__(
-            self,
-            coordinator: HisenseACPluginDataUpdateCoordinator,
-            device: HisenseDeviceInfo,
+        self,
+        coordinator: HisenseACPluginDataUpdateCoordinator,
+        device: HisenseDeviceInfo,
     ) -> None:
         """Initialize the dehumidifier entity."""
         super().__init__(coordinator)
-        self.static_data = coordinator.api_client.static_data.get(device.device_id)
+        self.static_data = coordinator.api_client.static_data.get(
+            device.device_id
+        )
         self._device_id = device.puid
         self._attr_unique_id = f"{device.device_id}_dehumidifier"
         self._attr_name = device.name
@@ -117,9 +126,15 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
         device_type = device.get_device_type()
         if device_type:
             try:
-                self._parser = coordinator.api_client.parsers.get(device.device_id)
-                _LOGGER.debug("Using parser for device type %s-%s:%s", device_type.type_code, device_type.feature_code,
-                              self._parser.attributes)
+                self._parser = coordinator.api_client.parsers.get(
+                    device.device_id
+                )
+                _LOGGER.debug(
+                    "Using parser for device type %s-%s:%s",
+                    device_type.type_code,
+                    device_type.feature_code,
+                    self._parser.attributes,
+                )
                 # 保存 device_type 的 type_code 和 feature_code 供后续使用
                 self._current_type_code = device_type.type_code
                 self._current_feature_code = device_type.feature_code
@@ -132,34 +147,51 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
             self._parser = None
 
         # Default modes if parser not available
-        if not hasattr(self, '_attr_available_modes'):
-            self._attr_available_modes = [STATE_CONTINUOUS, STATE_NORMAL, STATE_AUTO, STATE_DRY]
+        if not hasattr(self, "_attr_available_modes"):
+            self._attr_available_modes = [
+                STATE_CONTINUOUS,
+                STATE_NORMAL,
+                STATE_AUTO,
+                STATE_DRY,
+            ]
 
         # 获取目标湿度范围
-        target_humidity_attr = self._parser.attributes.get(StatusKey.HUMIDITY) if self._parser else None
+        target_humidity_attr = (
+            self._parser.attributes.get(StatusKey.HUMIDITY)
+            if self._parser
+            else None
+        )
 
         # 解析 propertyValueList 以获取湿度范围
         def parse_humidity_range(property_value_list):
             ranges = []
-            for item in property_value_list.split(','):
+            for item in property_value_list.split(","):
                 item = item.strip()
-                if '~' in item:
-                    lower, upper = map(int, item.split('~'))
+                if "~" in item:
+                    lower, upper = map(int, item.split("~"))
                     ranges.append((lower, upper))
             return ranges
 
         # 获取解析后的湿度范围
         if target_humidity_attr and target_humidity_attr.value_range:
-            humidity_ranges = parse_humidity_range(target_humidity_attr.value_range)
+            humidity_ranges = parse_humidity_range(
+                target_humidity_attr.value_range
+            )
             # 使用第一个范围作为默认范围
             if humidity_ranges:
-                self._attr_min_humidity, self._attr_max_humidity = humidity_ranges[0]
+                self._attr_min_humidity, self._attr_max_humidity = (
+                    humidity_ranges[0]
+                )
             else:
-                _LOGGER.warning("No valid humidity range found, using default range.")
+                _LOGGER.warning(
+                    "No valid humidity range found, using default range."
+                )
                 self._attr_min_humidity = 30
                 self._attr_max_humidity = 80
         else:
-            _LOGGER.warning("Target humidity attribute or value range not found, using default range.")
+            _LOGGER.warning(
+                "Target humidity attribute or value range not found, using default range."
+            )
             self._attr_min_humidity = 30
             self._attr_max_humidity = 80
 
@@ -175,14 +207,20 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
 
     def _get_supported_modes(self, device: HisenseDeviceInfo) -> list[str]:
         """获取设备支持的模式"""
-        _LOGGER.debug("当前除湿机的102-64属性 %s-%s:%s", device.type_code, device.feature_code,
-                      self.static_data)
-        Mode_settings_persistent = '1'
-        Mode_settings_normal = '1'
-        Mode_settings_auto = '1'
-        Mode_settings_dry = '1'
+        _LOGGER.debug(
+            "当前除湿机的102-64属性 %s-%s:%s",
+            device.type_code,
+            device.feature_code,
+            self.static_data,
+        )
+        Mode_settings_persistent = "1"
+        Mode_settings_normal = "1"
+        Mode_settings_auto = "1"
+        Mode_settings_dry = "1"
         if self.static_data:
-            Mode_settings_persistent = self.static_data.get("Mode_settings_persistent")
+            Mode_settings_persistent = self.static_data.get(
+                "Mode_settings_persistent"
+            )
             Mode_settings_normal = self.static_data.get("Mode_settings_normal")
             Mode_settings_auto = self.static_data.get("Mode_settings_auto")
             Mode_settings_dry = self.static_data.get("Mode_settings_dry")
@@ -192,19 +230,23 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
             for key, value in work_mode_attr.value_map.items():
                 # Map Chinese descriptions to HA modes
                 if "持续" in value or "continuous" in value.lower():
-                    if Mode_settings_persistent == '1':
+                    if Mode_settings_persistent == "1":
                         modes.append(STATE_CONTINUOUS)
                 elif "正常" in value or "normal" in value.lower():
-                    if Mode_settings_normal == '1':
+                    if Mode_settings_normal == "1":
                         modes.append(STATE_NORMAL)
                 elif "自动" in value or "auto" in value.lower():
-                    if Mode_settings_auto == '1':
+                    if Mode_settings_auto == "1":
                         modes.append(STATE_AUTO)
                 elif "干衣" in value or "dry" in value.lower():
-                    if Mode_settings_dry == '1':
+                    if Mode_settings_dry == "1":
                         modes.append(STATE_DRY)
-            _LOGGER.debug(" 除湿机添加完成的模式 %s-%s:%s", device.type_code, device.feature_code,
-                      modes)
+            _LOGGER.debug(
+                " 除湿机添加完成的模式 %s-%s:%s",
+                device.type_code,
+                device.feature_code,
+                modes,
+            )
         return modes
 
     @property
@@ -214,8 +256,8 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
 
     @property
     def available(self) -> bool:
-        #水箱故障触发时禁用当前除湿机
-        if 'f_e_waterfull' in self._device.failed_data:
+        # 水箱故障触发时禁用当前除湿机
+        if "f_e_waterfull" in self._device.failed_data:
             return False
         return self._device and self._device.is_online
 
@@ -224,11 +266,19 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
         """返回湿度控制是否开启"""
         if not self._device:
             return False
-        
+
         # 检查是否在防跳变时间内
-        if self._last_manual_control_time and datetime.now() - self._last_manual_control_time < self._debounce_time:
-            return self._last_cloud_state if self._last_cloud_state is not None else False
-            
+        if (
+            self._last_manual_control_time
+            and datetime.now() - self._last_manual_control_time
+            < self._debounce_time
+        ):
+            return (
+                self._last_cloud_state
+                if self._last_cloud_state is not None
+                else False
+            )
+
         power_status = self._device.get_status_value(StatusKey.POWER)
         self._last_cloud_state = power_status == "1"
         return self._last_cloud_state
@@ -267,7 +317,9 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
             try:
                 return int(humidity)
             except ValueError:
-                _LOGGER.error("Failed to convert humidity to integer: %s", humidity)
+                _LOGGER.error(
+                    "Failed to convert humidity to integer: %s", humidity
+                )
                 return None
         return humidity
 
@@ -278,12 +330,22 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
             return None
 
         current_mode = self.mode  # 获取当前模式
-        if current_mode == self._get_translation(STATE_AUTO):  # 自动模式强制返回50
+        if current_mode == self._get_translation(
+            STATE_AUTO
+        ):  # 自动模式强制返回50
             return 50
 
         # 检查是否在防跳变时间内
-        if self._last_manual_control_time and datetime.now() - self._last_manual_control_time < self._debounce_time:
-            return self._last_cloud_state if self._last_cloud_state is not None else None
+        if (
+            self._last_manual_control_time
+            and datetime.now() - self._last_manual_control_time
+            < self._debounce_time
+        ):
+            return (
+                self._last_cloud_state
+                if self._last_cloud_state is not None
+                else None
+            )
 
         humidity = self._device.get_status_value(StatusKey.HUMIDITY)
         if isinstance(humidity, str):
@@ -292,7 +354,10 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
                 self._last_cloud_state = humidity
                 return humidity
             except ValueError:
-                _LOGGER.error("Failed to convert target humidity to integer: %s", humidity)
+                _LOGGER.error(
+                    "Failed to convert target humidity to integer: %s",
+                    humidity,
+                )
                 return None
         return humidity
 
@@ -306,7 +371,10 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
                 return
 
             # Ensure the humidity is within the valid range initially
-            if humidity < self._attr_min_humidity or humidity > self._attr_max_humidity:
+            if (
+                humidity < self._attr_min_humidity
+                or humidity > self._attr_max_humidity
+            ):
                 _LOGGER.error("Humidity out of range: %s", humidity)
                 return
 
@@ -315,7 +383,7 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
             if remainder != 0:
                 if humidity > current_humidity:
                     # If the new humidity is greater than the current humidity, round up to the next multiple of 5
-                    humidity += (5 - remainder)
+                    humidity += 5 - remainder
                 else:
                     # If the new humidity is less than the current humidity, round down to the nearest multiple of 5
                     humidity -= remainder
@@ -343,7 +411,9 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
         now = datetime.now()
         is_debouncing = False
         if self._last_manual_control_time:
-            is_debouncing = (now - self._last_manual_control_time) < self._debounce_time
+            is_debouncing = (
+                now - self._last_manual_control_time
+            ) < self._debounce_time
 
         _LOGGER.debug(
             "获取模式 - 当前时间: %s - 上次操作: %s - 防跳变窗口: %s - 是否防跳变: %s - 待处理模式: %s - 手动控制: %s",
@@ -352,7 +422,7 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
             self._debounce_time,
             is_debouncing,
             self._pending_mode,
-            self._is_manual_control
+            self._is_manual_control,
         )
 
         # 如果是手动控制且在防跳变时间内，直接返回待处理模式
@@ -379,7 +449,9 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
 
     def _get_translation(self, key: str) -> str:
         current_lang = self.hass.config.language
-        translations = self.hass.data.get(f"{DOMAIN}.translations", {}).get(current_lang, {})
+        translations = self.hass.data.get(f"{DOMAIN}.translations", {}).get(
+            current_lang, {}
+        )
         mode = translations.get(key, key)
         return mode
 
@@ -390,7 +462,9 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
 
         try:
             current_lang = self.hass.config.language
-            translations = self.hass.data[f"{DOMAIN}.translations"][current_lang]
+            translations = self.hass.data[f"{DOMAIN}.translations"][
+                current_lang
+            ]
             key = None
             for k, v in translations.items():
                 if v == mode:
@@ -405,28 +479,36 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
                 self._last_manual_control_time = datetime.now()
                 self._pending_mode = mode
                 self._is_manual_control = True  # 设置手动控制标志
-                _LOGGER.debug("设置模式 - 时间: %s - 模式: %s", self._last_manual_control_time, mode)
-                
+                _LOGGER.debug(
+                    "设置模式 - 时间: %s - 模式: %s",
+                    self._last_manual_control_time,
+                    mode,
+                )
+
                 # 立即更新UI状态
                 self.async_write_ha_state()
-                
+
                 await self.coordinator.async_control_device(
                     puid=self._device_id,
                     properties={StatusKey.MODE: hisense_mode},
                 )
-                
+
                 # 启动一个任务来清除手动控制状态
                 async def clear_manual_control():
                     await asyncio.sleep(self._debounce_time.total_seconds())
                     self._is_manual_control = False
                     # 获取最新的云端状态
-                    hisense_mode = self._device.get_status_value(StatusKey.MODE)
-                    mode_key = OPERATION_DEHUMIDIFIER_MAP.get(hisense_mode, STATE_NORMAL)
+                    hisense_mode = self._device.get_status_value(
+                        StatusKey.MODE
+                    )
+                    mode_key = OPERATION_DEHUMIDIFIER_MAP.get(
+                        hisense_mode, STATE_NORMAL
+                    )
                     translated_mode = self._get_translation(mode_key)
                     self._pending_mode = translated_mode
                     self._last_cloud_state_mode = translated_mode
                     self.async_write_ha_state()
-                
+
                 self.hass.async_create_task(clear_manual_control())
             else:
                 _LOGGER.error(f"无法找到 Hisense 对应值：{key}")
@@ -437,5 +519,8 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
 
     @property
     def available_modes(self) -> list[str]:
-        translated_modes = [self._get_translation(mode_key) for mode_key in self._attr_available_modes]
+        translated_modes = [
+            self._get_translation(mode_key)
+            for mode_key in self._attr_available_modes
+        ]
         return translated_modes

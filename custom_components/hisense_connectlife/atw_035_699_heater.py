@@ -1,9 +1,9 @@
 # atw_035_699_water_heater.py
 """Platform for Hisense ATW 035-699 Water Heater integration."""
+
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from homeassistant.components.water_heater import (
     WaterHeaterEntity,
@@ -26,12 +26,9 @@ from .const import (
     MIN_TEMP_WATER,
     MAX_TEMP_WATER,
     StatusKey,
-    OPERATION_MODE_ECO,
-    OPERATION_MODE_VACATION,
 )
 from .coordinator import HisenseACPluginDataUpdateCoordinator
 from .models import DeviceInfo as HisenseDeviceInfo
-from .devices import get_device_parser, BaseBeanParser
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -54,14 +51,17 @@ OPERATION1_MODE_MAP = {
 }
 REVERSE_OPERATION_MAP = {v: k for k, v in OPERATION1_MODE_MAP.items()}
 
+
 async def async_setup_entry(
-        hass: HomeAssistant,
-        config_entry: ConfigEntry,
-        async_add_entities: AddEntitiesCallback,
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the Hisense ATW 035-699 Water Heater platform."""
     _LOGGER.debug("ATW 035-699 WaterHeater data start")
-    coordinator: HisenseACPluginDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
+    coordinator: HisenseACPluginDataUpdateCoordinator = hass.data[DOMAIN][
+        config_entry.entry_id
+    ]
 
     try:
         # Trigger initial data update
@@ -73,12 +73,16 @@ async def async_setup_entry(
             _LOGGER.warning("No devices found in coordinator data")
             return
 
-        _LOGGER.debug("Coordinator ATW 035-699 WaterHeater after refresh: %s", devices)
+        _LOGGER.debug(
+            "Coordinator ATW 035-699 WaterHeater after refresh: %s", devices
+        )
 
         entities = [
             Atw035699WaterHeater(coordinator, device)
             for device_id, device in devices.items()
-            if isinstance(device, HisenseDeviceInfo) and device.type_code == "035" and device.feature_code == "699"
+            if isinstance(device, HisenseDeviceInfo)
+            and device.type_code == "035"
+            and device.feature_code == "699"
         ]
 
         if entities:
@@ -87,8 +91,11 @@ async def async_setup_entry(
             _LOGGER.warning("No supported ATW 035-699 water heaters found")
 
     except Exception as err:
-        _LOGGER.error("Failed to setup ATW 035-699 water heater platform: %s", err)
+        _LOGGER.error(
+            "Failed to setup ATW 035-699 water heater platform: %s", err
+        )
         raise
+
 
 class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
     """Hisense ATW 035-699 Water Heater entity implementation."""
@@ -96,9 +103,9 @@ class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
     _attr_has_entity_name = True
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_supported_features = (
-            WaterHeaterEntityFeature.TARGET_TEMPERATURE |
-            WaterHeaterEntityFeature.OPERATION_MODE |
-            WaterHeaterEntityFeature.ON_OFF
+        WaterHeaterEntityFeature.TARGET_TEMPERATURE
+        | WaterHeaterEntityFeature.OPERATION_MODE
+        | WaterHeaterEntityFeature.ON_OFF
     )
 
     TEMP_RANGE_MAP = {
@@ -112,9 +119,9 @@ class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
     }
 
     def __init__(
-            self,
-            coordinator: HisenseACPluginDataUpdateCoordinator,
-            device: HisenseDeviceInfo,
+        self,
+        coordinator: HisenseACPluginDataUpdateCoordinator,
+        device: HisenseDeviceInfo,
     ) -> None:
         """Initialize the water heater entity."""
         super().__init__(coordinator)
@@ -131,9 +138,15 @@ class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
         device_type = device.get_device_type()
         if device_type:
             try:
-                self._parser = coordinator.api_client.parsers.get(device.device_id)
-                _LOGGER.debug("Using parser for device type %s-%s:%s", device_type.type_code, device_type.feature_code,
-                              self._parser)
+                self._parser = coordinator.api_client.parsers.get(
+                    device.device_id
+                )
+                _LOGGER.debug(
+                    "Using parser for device type %s-%s:%s",
+                    device_type.type_code,
+                    device_type.feature_code,
+                    self._parser,
+                )
                 # 保存 device_type 的 type_code 和 feature_code 供后续使用
                 self._current_type_code = device_type.type_code
                 self._current_feature_code = device_type.feature_code
@@ -148,8 +161,14 @@ class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
             self._parser = None
 
         # Default modes if parser not available
-        if not hasattr(self, '_attr_operation_list'):
-            self._attr_operation_list = [STATE_OFF, STATE_ECO, STATE_ELECTRIC, STATE_HEAT_PUMP, STATE_HIGH_DEMAND]
+        if not hasattr(self, "_attr_operation_list"):
+            self._attr_operation_list = [
+                STATE_OFF,
+                STATE_ECO,
+                STATE_ELECTRIC,
+                STATE_HEAT_PUMP,
+                STATE_HIGH_DEMAND,
+            ]
 
         self._attr_min_temp = MIN_TEMP_WATER
         self._attr_max_temp = MAX_TEMP_WATER
@@ -168,13 +187,24 @@ class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
                     modes.append(STATE_COOL)
                 elif "自动" in value or STATE_AUTO in value.lower():
                     modes.append(STATE_AUTO)
-                elif "热水+制冷" in value or STATE_HOT_WATER_COOL in value.lower():
+                elif (
+                    "热水+制冷" in value
+                    or STATE_HOT_WATER_COOL in value.lower()
+                ):
                     modes.append(STATE_HOT_WATER_COOL)
-                elif "热水+自动" in value or STATE_HOT_WATER_AUTO in value.lower():  # 添加双能1模式的支持
+                elif (
+                    "热水+自动" in value
+                    or STATE_HOT_WATER_AUTO in value.lower()
+                ):  # 添加双能1模式的支持
                     modes.append(STATE_HOT_WATER_AUTO)
-                elif "热水" in value or STATE_HOT_WATER in value.lower():  # 添加双能1模式的支持
+                elif (
+                    "热水" in value or STATE_HOT_WATER in value.lower()
+                ):  # 添加双能1模式的支持
                     modes.append(STATE_HOT_WATER)
-                elif "热水+制热" in value or STATE_HOT_WATER_HEAT in value.lower():  # 添加双能1模式的支持
+                elif (
+                    "热水+制热" in value
+                    or STATE_HOT_WATER_HEAT in value.lower()
+                ):  # 添加双能1模式的支持
                     modes.append(STATE_HOT_WATER_HEAT)
 
         return modes
@@ -185,15 +215,27 @@ class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
             return
 
         current_mode = self.current_operation
-        if current_mode in self.TEMP_RANGE_MAP.get(self._current_feature_code, {}):
-            min_temp, max_temp = self.TEMP_RANGE_MAP[self._current_feature_code][current_mode]
+        if current_mode in self.TEMP_RANGE_MAP.get(
+            self._current_feature_code, {}
+        ):
+            min_temp, max_temp = self.TEMP_RANGE_MAP[
+                self._current_feature_code
+            ][current_mode]
             self._attr_min_temp = min_temp
             self._attr_max_temp = max_temp
-            _LOGGER.debug("Updated temperature range to %d-%d for mode %s and feature_code %s", min_temp, max_temp,
-                          current_mode, self._current_feature_code)
+            _LOGGER.debug(
+                "Updated temperature range to %d-%d for mode %s and feature_code %s",
+                min_temp,
+                max_temp,
+                current_mode,
+                self._current_feature_code,
+            )
         else:
-            _LOGGER.warning("No temperature range found for mode %s and feature_code %s", current_mode,
-                            self._current_feature_code)
+            _LOGGER.warning(
+                "No temperature range found for mode %s and feature_code %s",
+                current_mode,
+                self._current_feature_code,
+            )
 
     @property
     def _device(self):
@@ -257,7 +299,9 @@ class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
             try:
                 return float(temp)
             except ValueError:
-                _LOGGER.error("Failed to convert temperature to float: %s", temp)
+                _LOGGER.error(
+                    "Failed to convert temperature to float: %s", temp
+                )
                 return None
         return temp
 
@@ -271,7 +315,9 @@ class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
             try:
                 return float(temp)
             except ValueError:
-                _LOGGER.error("Failed to convert target temperature to float: %s", temp)
+                _LOGGER.error(
+                    "Failed to convert target temperature to float: %s", temp
+                )
                 return None
         return temp
 
@@ -304,35 +350,46 @@ class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
             hisense_mode = None
 
             # Try to map using device parser
-            if hasattr(self, '_parser') and self._parser:
+            if hasattr(self, "_parser") and self._parser:
                 work_mode_attr = self._parser.attributes.get(StatusKey.MODE)
                 if work_mode_attr and work_mode_attr.value_map:
                     for key, value in work_mode_attr.value_map.items():
-                        if operation_mode == STATE_HEAT and ("制热" in value or STATE_HEAT in value.lower()):
+                        if operation_mode == STATE_HEAT and (
+                            "制热" in value or STATE_HEAT in value.lower()
+                        ):
                             hisense_mode = key
                             break
                         elif operation_mode == STATE_COOL and (
-                                "制冷" in value or STATE_COOL in value.lower()):
+                            "制冷" in value or STATE_COOL in value.lower()
+                        ):
                             hisense_mode = key
                             break
                         elif operation_mode == STATE_AUTO and (
-                                "自动" in value or STATE_AUTO in value.lower()):
+                            "自动" in value or STATE_AUTO in value.lower()
+                        ):
                             hisense_mode = key
                             break
                         elif operation_mode == STATE_HOT_WATER_COOL and (
-                                "热水+制冷" in value or STATE_HOT_WATER_COOL in value.lower()):
+                            "热水+制冷" in value
+                            or STATE_HOT_WATER_COOL in value.lower()
+                        ):
                             hisense_mode = key
                             break
                         elif operation_mode == STATE_HOT_WATER_AUTO and (
-                                "热水+自动" in value or STATE_HOT_WATER_AUTO in value.lower()):  # 添加双能1模式的支持
+                            "热水+自动" in value
+                            or STATE_HOT_WATER_AUTO in value.lower()
+                        ):  # 添加双能1模式的支持
                             hisense_mode = key
                             break
                         elif operation_mode == STATE_HOT_WATER and (
-                                "热水" in value or STATE_HOT_WATER in value.lower()):  # 添加双能1模式的支持
+                            "热水" in value or STATE_HOT_WATER in value.lower()
+                        ):  # 添加双能1模式的支持
                             hisense_mode = key
                             break
                         elif operation_mode == STATE_HOT_WATER_HEAT and (
-                                "热水+制热" in value or STATE_HOT_WATER_HEAT in value.lower()):  # 添加双能1模式的支持
+                            "热水+制热" in value
+                            or STATE_HOT_WATER_HEAT in value.lower()
+                        ):  # 添加双能1模式的支持
                             hisense_mode = key
                             break
 
@@ -343,7 +400,11 @@ class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
                     hisense_mode = mode_str
 
             if hisense_mode:
-                _LOGGER.debug("Setting HVAC mode to %s (Hisense value: %s)", operation_mode, hisense_mode)
+                _LOGGER.debug(
+                    "Setting HVAC mode to %s (Hisense value: %s)",
+                    operation_mode,
+                    hisense_mode,
+                )
                 await self.coordinator.async_control_device(
                     puid=self._device_id,
                     properties={StatusKey.MODE: hisense_mode},
@@ -353,7 +414,10 @@ class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
                 # 刷新实体状态
                 self.async_write_ha_state()
             else:
-                _LOGGER.error("Could not find Hisense mode value for HA mode: %s", operation_mode)
+                _LOGGER.error(
+                    "Could not find Hisense mode value for HA mode: %s",
+                    operation_mode,
+                )
         except Exception as err:
             _LOGGER.error("Failed to set hvac mode: %s", err)
 

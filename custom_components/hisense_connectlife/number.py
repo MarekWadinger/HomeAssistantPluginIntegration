@@ -1,23 +1,23 @@
 # file: number.py
 """Platform for Hisense AC number integration."""
+
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable
 
-from homeassistant.components.number import NumberEntity, NumberDeviceClass, NumberMode
+from homeassistant.components.number import (
+    NumberEntity,
+    NumberDeviceClass,
+    NumberMode,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.helpers.event import async_track_state_change_event
-from homeassistant.core import Event
-from homeassistant.helpers.dispatcher import callback
 
-from .const import DOMAIN, StatusKey, MIN_TEMP_WATER, MAX_TEMP_WATER
+from .const import DOMAIN, MIN_TEMP_WATER, MAX_TEMP_WATER
 from .coordinator import HisenseACPluginDataUpdateCoordinator
-from .api import HisenseApiClient
 from .models import DeviceInfo as HisenseDeviceInfo
 
 _LOGGER = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ NUMBER_TYPES = {
         "min_value": 16,
         "max_value": 32,
         "step": 0.5,
-        "description": "Set 1温区设置值"
+        "description": "Set 1温区设置值",
     },
     "t_zone2water_settemp2": {
         "key": "t_zone2water_settemp2",
@@ -46,9 +46,10 @@ NUMBER_TYPES = {
         "min_value": 16,
         "max_value": 32,
         "step": 0.5,
-        "description": "Set 2温区设置值"
-    }
+        "description": "Set 2温区设置值",
+    },
 }
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -56,7 +57,9 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the Hisense AC number platform."""
-    coordinator: HisenseACPluginDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
+    coordinator: HisenseACPluginDataUpdateCoordinator = hass.data[DOMAIN][
+        config_entry.entry_id
+    ]
 
     try:
         # Get devices from coordinator
@@ -69,34 +72,38 @@ async def async_setup_entry(
 
         entities = []
         for device_id, device in devices.items():
-            _LOGGER.debug("Processing device for numbers: %s", device.to_dict())
+            _LOGGER.debug(
+                "Processing device for numbers: %s", device.to_dict()
+            )
 
             if isinstance(device, HisenseDeviceInfo) and device.is_devices():
                 # Add numbers for each supported feature
                 for number_type, number_info in NUMBER_TYPES.items():
                     # Check if the device supports this attribute
-                    parser = coordinator.api_client.parsers.get(device.device_id)
+                    parser = coordinator.api_client.parsers.get(
+                        device.device_id
+                    )
                     if device.has_attribute(number_info["key"], parser):
-                        if device.status.get("f_zone2_select") == "0" and number_type == "t_zone2water_settemp2":
+                        if (
+                            device.status.get("f_zone2_select") == "0"
+                            and number_type == "t_zone2water_settemp2"
+                        ):
                             continue
                         _LOGGER.info(
                             "Adding %s number for device: %s",
                             number_info["name"],
-                            device.name
+                            device.name,
                         )
                         entity = HisenseNumber(
-                            coordinator,
-                            device,
-                            number_type,
-                            number_info
+                            coordinator, device, number_type, number_info
                         )
                         entities.append(entity)
             else:
                 _LOGGER.warning(
                     "Skipping unsupported device: %s-%s (%s)",
-                    getattr(device, 'type_code', None),
-                    getattr(device, 'feature_code', None),
-                    getattr(device, 'name', None)
+                    getattr(device, "type_code", None),
+                    getattr(device, "feature_code", None),
+                    getattr(device, "name", None),
                 )
 
         if not entities:
@@ -109,6 +116,7 @@ async def async_setup_entry(
     except Exception as err:
         _LOGGER.error("Failed to set up number platform: %s", err)
         raise
+
 
 class HisenseNumber(CoordinatorEntity, NumberEntity):
     """Representation of a Hisense AC number."""
@@ -174,8 +182,12 @@ class HisenseNumber(CoordinatorEntity, NumberEntity):
         hass = self.hass
         translation_key = self._number_type  # 使用开关类型作为键
         current_lang = hass.config.language
-        translations = hass.data.get(f"{DOMAIN}.translations", {}).get(current_lang, {})
-        translated_name = translations.get(translation_key, self._number_info["name"])
+        translations = hass.data.get(f"{DOMAIN}.translations", {}).get(
+            current_lang, {}
+        )
+        translated_name = translations.get(
+            translation_key, self._number_info["name"]
+        )
         return translated_name
 
     @property
@@ -206,7 +218,10 @@ class HisenseNumber(CoordinatorEntity, NumberEntity):
         t1_temp = device.get_status_value("t_zone1water_settemp1")
 
         # 如果模式和温区1温度未变，则无需更新
-        if current_mode == self._last_mode and t1_temp == self._last_t_zone1_temp:
+        if (
+            current_mode == self._last_mode
+            and t1_temp == self._last_t_zone1_temp
+        ):
             return
 
         self._last_mode = current_mode
@@ -214,16 +229,30 @@ class HisenseNumber(CoordinatorEntity, NumberEntity):
 
         mode_index = self._get_mode_index(current_mode)
         if mode_index is None:
-            _LOGGER.warning("No temperature range found for mode %s", current_mode)
+            _LOGGER.warning(
+                "No temperature range found for mode %s", current_mode
+            )
             return
 
         temperatures = self._temperatureRange[mode_index]
         if self._number_type == "t_zone2water_settemp2":
-            min_val = float(temperatures[2]) if temperatures[2] is not None else MIN_TEMP_WATER
+            min_val = (
+                float(temperatures[2])
+                if temperatures[2] is not None
+                else MIN_TEMP_WATER
+            )
             max_val = float(t1_temp) if t1_temp is not None else MAX_TEMP_WATER
         else:
-            min_val = float(temperatures[2]) if temperatures[2] is not None else MIN_TEMP_WATER
-            max_val = float(temperatures[3]) if temperatures[3] is not None else MAX_TEMP_WATER
+            min_val = (
+                float(temperatures[2])
+                if temperatures[2] is not None
+                else MIN_TEMP_WATER
+            )
+            max_val = (
+                float(temperatures[3])
+                if temperatures[3] is not None
+                else MAX_TEMP_WATER
+            )
 
         self._attr_native_min_value = min_val
         self._attr_native_max_value = max_val
@@ -275,7 +304,9 @@ class HisenseNumber(CoordinatorEntity, NumberEntity):
 
         # 监听设备数据更新
         self.async_on_remove(
-            self.coordinator.async_add_listener(self._handle_coordinator_update)
+            self.coordinator.async_add_listener(
+                self._handle_coordinator_update
+            )
         )
 
     def _handle_coordinator_update(self) -> None:
@@ -287,7 +318,10 @@ class HisenseNumber(CoordinatorEntity, NumberEntity):
         """Set new target value."""
         try:
             # Ensure the value is within the valid range
-            if value < self._attr_native_min_value or value > self._attr_native_max_value:
+            if (
+                value < self._attr_native_min_value
+                or value > self._attr_native_max_value
+            ):
                 _LOGGER.error("Value out of range: %s", value)
                 return
 

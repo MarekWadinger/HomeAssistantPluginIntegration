@@ -1,10 +1,10 @@
 # base_bean.py
-from typing import Dict, List
+from typing import Dict
 
 from .base import BaseDeviceParser, DeviceAttribute
 
-class BaseBeanParser(BaseDeviceParser):
 
+class BaseBeanParser(BaseDeviceParser):
     @property
     def device_type(self) -> str:
         return "1"
@@ -18,10 +18,9 @@ class BaseBeanParser(BaseDeviceParser):
         if key in self._attributes:
             del self._attributes[key]
 
-
     @property
     def attributes(self) -> Dict[str, DeviceAttribute]:
-        if not hasattr(self, '_attributes'):
+        if not hasattr(self, "_attributes"):
             self._attributes = {
                 "t_work_mode": DeviceAttribute(
                     key="t_work_mode",
@@ -40,9 +39,9 @@ class BaseBeanParser(BaseDeviceParser):
                         "9": "ECO模式",
                         "10": "双能热水模式",
                         "11": "双能1模式",
-                        "12": "电热热水模式"
+                        "12": "电热热水模式",
                     },
-                    read_write="RW"
+                    read_write="RW",
                 ),
                 "t_power": DeviceAttribute(
                     key="t_power",
@@ -50,11 +49,8 @@ class BaseBeanParser(BaseDeviceParser):
                     attr_type="Enum",
                     step=1,
                     value_range="0,1",
-                    value_map={
-                        "0": "关",
-                        "1": "开"
-                    },
-                    read_write="RW"
+                    value_map={"0": "关", "1": "开"},
+                    read_write="RW",
                 ),
                 "t_temp": DeviceAttribute(
                     key="t_temp",
@@ -62,7 +58,7 @@ class BaseBeanParser(BaseDeviceParser):
                     attr_type="Number",
                     step=1,
                     value_range="16~32,61~90",
-                    read_write="RW"
+                    read_write="RW",
                 ),
                 "t_fan_speed": DeviceAttribute(
                     key="t_fan_speed",
@@ -79,9 +75,9 @@ class BaseBeanParser(BaseDeviceParser):
                         "6": "中低",
                         "7": "中",
                         "8": "中高",
-                        "9": "高"
+                        "9": "高",
                     },
-                    read_write="RW"
+                    read_write="RW",
                 ),
                 "t_up_down": DeviceAttribute(
                     key="t_up_down",
@@ -89,11 +85,8 @@ class BaseBeanParser(BaseDeviceParser):
                     attr_type="Enum",
                     step=1,
                     value_range="0,1",
-                    value_map={
-                        "0": "取消",
-                        "1": "开启"
-                    },
-                    read_write="RW"
+                    value_map={"0": "取消", "1": "开启"},
+                    read_write="RW",
                 ),
                 "t_temp_type": DeviceAttribute(
                     key="t_temp_type",
@@ -101,11 +94,8 @@ class BaseBeanParser(BaseDeviceParser):
                     attr_type="Enum",
                     step=1,
                     value_range="0,1",
-                    value_map={
-                        "0": "摄氏",
-                        "1": "华氏"
-                    },
-                    read_write="RW"
+                    value_map={"0": "摄氏", "1": "华氏"},
+                    read_write="RW",
                 ),
                 "t_left_right": DeviceAttribute(
                     key="t_left_right",
@@ -113,17 +103,14 @@ class BaseBeanParser(BaseDeviceParser):
                     attr_type="Enum",
                     step=1,
                     value_range="0,1",
-                    value_map={
-                        "0": "取消",
-                        "1": "开启"
-                    },
-                    read_write="RW"
+                    value_map={"0": "取消", "1": "开启"},
+                    read_write="RW",
                 ),
                 "f_power_consumption": DeviceAttribute(
                     key="f_power_consumption",
                     name="电量累积消耗值",
                     attr_type="Number",
-                    read_write="R"
+                    read_write="R",
                 ),
                 "t_fan_mute": DeviceAttribute(
                     key="t_fan_mute",
@@ -131,17 +118,14 @@ class BaseBeanParser(BaseDeviceParser):
                     attr_type="Enum",
                     step=1,
                     value_range="0,1",
-                    value_map={
-                        "0": "停",
-                        "1": "开"
-                    },
-                    read_write="RW"
+                    value_map={"0": "停", "1": "开"},
+                    read_write="RW",
                 ),
                 "f_temp_in": DeviceAttribute(
                     key="f_temp_in",
                     name="室内温度",
                     attr_type="Number",
-                    read_write="R"
+                    read_write="R",
                 ),
                 "t_8heat": DeviceAttribute(
                     key="t_8heat",
@@ -149,11 +133,8 @@ class BaseBeanParser(BaseDeviceParser):
                     attr_type="Enum",
                     step=1,
                     value_range="0,1",
-                    value_map={
-                        "0": "关闭",
-                        "1": "开启"
-                    },
-                    read_write="RW"
+                    value_map={"0": "关闭", "1": "开启"},
+                    read_write="RW",
                 ),
                 "t_eco": DeviceAttribute(
                     key="t_eco",
@@ -161,11 +142,8 @@ class BaseBeanParser(BaseDeviceParser):
                     attr_type="Enum",
                     step=1,
                     value_range="0,1",
-                    value_map={
-                        "0": "关闭",
-                        "1": "开启"
-                    },
-                    read_write="RW"
+                    value_map={"0": "关闭", "1": "开启"},
+                    read_write="RW",
                 ),
                 "t_humidity": DeviceAttribute(
                     key="t_humidity",
@@ -173,7 +151,7 @@ class BaseBeanParser(BaseDeviceParser):
                     attr_type="Number",
                     step=5,
                     value_range="30~80",
-                    read_write="RW"
+                    read_write="RW",
                 ),
                 "f_humidity": DeviceAttribute(
                     key="f_humidity",
@@ -181,7 +159,7 @@ class BaseBeanParser(BaseDeviceParser):
                     attr_type="Number",
                     step=1,
                     value_range="30~90",
-                    read_write="R"
+                    read_write="R",
                 ),
                 "t_super": DeviceAttribute(
                     key="t_super",
@@ -189,12 +167,9 @@ class BaseBeanParser(BaseDeviceParser):
                     attr_type="Enum",
                     step=1,
                     value_range="0,1",
-                    value_map={
-                        "0": "取消",
-                        "1": "开启"
-                    },
-                    read_write="RW"
-                )
+                    value_map={"0": "取消", "1": "开启"},
+                    read_write="RW",
+                ),
             }
         return self._attributes
 

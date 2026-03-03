@@ -14,7 +14,9 @@ from .const import CLIENT_ID, CLIENT_SECRET, OAUTH2_AUTHORIZE, OAUTH2_TOKEN
 _LOGGER = logging.getLogger(__name__)
 
 
-class HisenseOAuth2Implementation(config_entry_oauth2_flow.LocalOAuth2Implementation):
+class HisenseOAuth2Implementation(
+    config_entry_oauth2_flow.LocalOAuth2Implementation
+):
     """Hisense OAuth2 implementation for Application Credentials."""
 
     def __init__(self, hass: HomeAssistant) -> None:
@@ -61,31 +63,33 @@ class HisenseAuthProvider:
         implementation = await config_entry_oauth2_flow.async_get_config_entry_implementation(
             self.hass, config_entry
         )
-        
+
         session = OAuth2Session(self.hass, config_entry, implementation)
         token_info = await session.async_ensure_token_valid()
-        
+
         if not token_info:
-            raise ValueError("No valid token available from Application Credentials")
-            
+            raise ValueError(
+                "No valid token available from Application Credentials"
+            )
+
         return token_info["access_token"]
 
     async def _get_legacy_oauth2_token(self, config_entry) -> str:
         """Get token from legacy OAuth2 implementation."""
         from .oauth2 import HisenseOAuth2Implementation, OAuth2Session
-        
+
         implementation = HisenseOAuth2Implementation(self.hass)
         token_info = config_entry.data.get("token", {})
-        
+
         if not token_info:
             raise ValueError("No token data available in config entry")
-            
+
         oauth_session = OAuth2Session(
             hass=self.hass,
             oauth2_implementation=implementation,
             token=token_info,
         )
-        
+
         await oauth_session.async_ensure_token_valid()
         return await oauth_session.async_get_access_token()
 
@@ -96,36 +100,41 @@ class HisenseAuthProvider:
         else:
             return await self._refresh_legacy_oauth2_token(config_entry)
 
-    async def _refresh_app_credentials_token(self, config_entry) -> dict[str, Any]:
+    async def _refresh_app_credentials_token(
+        self, config_entry
+    ) -> dict[str, Any]:
         """Refresh token using Application Credentials."""
         implementation = await config_entry_oauth2_flow.async_get_config_entry_implementation(
             self.hass, config_entry
         )
-        
+
         session = OAuth2Session(self.hass, config_entry, implementation)
         token_info = await session.async_ensure_token_valid()
-        
+
         if not token_info:
-            raise ValueError("Failed to refresh token using Application Credentials")
-            
+            raise ValueError(
+                "Failed to refresh token using Application Credentials"
+            )
+
         return token_info
 
-    async def _refresh_legacy_oauth2_token(self, config_entry) -> dict[str, Any]:
+    async def _refresh_legacy_oauth2_token(
+        self, config_entry
+    ) -> dict[str, Any]:
         """Refresh token using legacy OAuth2."""
         from .oauth2 import HisenseOAuth2Implementation
-        
+
         implementation = HisenseOAuth2Implementation(self.hass)
         token_info = config_entry.data.get("token", {})
-        
+
         if not token_info:
             raise ValueError("No token data available for refresh")
-            
+
         new_token = await implementation.async_refresh_token(token_info)
-        
+
         # Update config entry with new token
         self.hass.config_entries.async_update_entry(
-            config_entry,
-            data={**config_entry.data, "token": new_token}
+            config_entry, data={**config_entry.data, "token": new_token}
         )
-        
+
         return new_token

@@ -39,7 +39,9 @@ class HisenseReauthFlowHandler(
         """Extra data that needs to be appended to the authorize url."""
         return {}
 
-    async def async_step_reauth(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_reauth(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
         """Handle reauth flow."""
         self._reauth_entry = self.hass.config_entries.async_get_entry(
             self.context["entry_id"]
@@ -65,22 +67,28 @@ class HisenseReauthFlowHandler(
         )
 
         if not implementation:
-            return self.async_abort(reason="oauth2_implementation_not_available")
+            return self.async_abort(
+                reason="oauth2_implementation_not_available"
+            )
 
         self.flow_impl = implementation
 
         try:
-            url = await self.flow_impl.async_generate_authorize_url(self.flow_id)
-            return self.async_external_step(step_id="reauth", url=url)
+            url = await self.flow_impl.async_generate_authorize_url(
+                self.flow_id
+            )
+            return self.async_external_step(step_id="reauth_complete", url=url)
         except Exception as err:
             _LOGGER.error("Failed to generate reauth URL: %s", err)
             return self.async_abort(reason="authorize_url_fail")
 
-    async def async_step_reauth(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Handle reauth external step."""
+    async def async_step_reauth_complete(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle reauth external step completion."""
         if user_input is None:
             return self.async_show_form(
-                step_id="reauth",
+                step_id="reauth_complete",
                 data_schema=vol.Schema({}),
                 description_placeholders={
                     "message": "Please complete the authentication process in your browser."
@@ -106,7 +114,9 @@ class HisenseReauthFlowHandler(
         )
 
         # Reload the entry
-        await self.hass.config_entries.async_reload(self._reauth_entry.entry_id)
+        await self.hass.config_entries.async_reload(
+            self._reauth_entry.entry_id
+        )
 
         return self.async_abort(reason="reauth_successful")
 
@@ -122,7 +132,9 @@ class HisenseReauthFlowManager:
         self, config_entry: config_entries.ConfigEntry
     ) -> None:
         """Initiate reauth flow for a config entry."""
-        _LOGGER.info("Initiating reauth for config entry: %s", config_entry.entry_id)
+        _LOGGER.info(
+            "Initiating reauth for config entry: %s", config_entry.entry_id
+        )
 
         # Create reauth flow
         flow = HisenseReauthFlowHandler()
@@ -154,5 +166,7 @@ class HisenseReauthFlowManager:
             return False
 
         except Exception as err:
-            _LOGGER.warning("Token validation failed, reauth required: %s", err)
+            _LOGGER.warning(
+                "Token validation failed, reauth required: %s", err
+            )
             return True

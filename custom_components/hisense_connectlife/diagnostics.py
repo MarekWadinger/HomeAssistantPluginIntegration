@@ -32,7 +32,9 @@ async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, config_entry: ConfigEntry
 ) -> dict[str, Any]:
     """Return diagnostics for a config entry."""
-    _LOGGER.debug("Getting diagnostics for config entry: %s", config_entry.entry_id)
+    _LOGGER.debug(
+        "Getting diagnostics for config entry: %s", config_entry.entry_id
+    )
 
     coordinator = hass.data[DOMAIN].get(config_entry.entry_id)
     if not coordinator:
@@ -54,9 +56,15 @@ async def async_get_config_entry_diagnostics(
     # Get coordinator data
     coordinator_data = {
         "last_update_success": coordinator.last_update_success,
-        "last_update_time": coordinator.last_update_time.isoformat() if coordinator.last_update_time else None,
-        "update_interval": coordinator.update_interval.total_seconds() if coordinator.update_interval else None,
-        "device_count": len(coordinator._devices) if hasattr(coordinator, "_devices") else 0,
+        "last_update_time": coordinator.last_update_time.isoformat()
+        if coordinator.last_update_time
+        else None,
+        "update_interval": coordinator.update_interval.total_seconds()
+        if coordinator.update_interval
+        else None,
+        "device_count": len(coordinator._devices)
+        if hasattr(coordinator, "_devices")
+        else 0,
     }
 
     # Get device information
@@ -69,8 +77,12 @@ async def async_get_config_entry_diagnostics(
                 "feature_code": device.feature_code,
                 "feature_name": device.feature_name,
                 "online": not getattr(device, "offlineState", False),
-                "status_keys": list(device.status.keys()) if hasattr(device, "status") else [],
-                "failed_data": device.failed_data if hasattr(device, "failed_data") else [],
+                "status_keys": list(device.status.keys())
+                if hasattr(device, "status")
+                else [],
+                "failed_data": device.failed_data
+                if hasattr(device, "failed_data")
+                else [],
             }
 
     # Get API client information
@@ -81,9 +93,14 @@ async def async_get_config_entry_diagnostics(
             "has_auth_provider": api_client.auth_provider is not None,
             "has_oauth_session": api_client.oauth_session is not None,
             "has_config_entry": api_client.config_entry is not None,
-            "websocket_connected": getattr(api_client, "_websocket", None) is not None,
-            "parsers_count": len(api_client.parsers) if hasattr(api_client, "parsers") else 0,
-            "static_data_count": len(api_client.static_data) if hasattr(api_client, "static_data") else 0,
+            "websocket_connected": getattr(api_client, "_websocket", None)
+            is not None,
+            "parsers_count": len(api_client.parsers)
+            if hasattr(api_client, "parsers")
+            else 0,
+            "static_data_count": len(api_client.static_data)
+            if hasattr(api_client, "static_data")
+            else 0,
         }
 
     # Get WebSocket information
@@ -91,7 +108,9 @@ async def async_get_config_entry_diagnostics(
     if hasattr(coordinator, "_websocket") and coordinator._websocket:
         websocket_data = {
             "connected": getattr(coordinator._websocket, "connected", False),
-            "reconnect_interval": getattr(coordinator._websocket, "reconnect_interval", None),
+            "reconnect_interval": getattr(
+                coordinator._websocket, "reconnect_interval", None
+            ),
         }
 
     # Combine all data
@@ -131,17 +150,26 @@ async def async_get_device_diagnostics(
         "feature_name": device.feature_name,
         "online": not getattr(device, "offlineState", False),
         "status": device.status if hasattr(device, "status") else {},
-        "failed_data": device.failed_data if hasattr(device, "failed_data") else [],
-        "static_data": device.static_data if hasattr(device, "static_data") else {},
+        "failed_data": device.failed_data
+        if hasattr(device, "failed_data")
+        else [],
+        "static_data": device.static_data
+        if hasattr(device, "static_data")
+        else {},
     }
 
     # Get parser information
     parser_data = {}
-    if hasattr(coordinator.api_client, "parsers") and device_id in coordinator.api_client.parsers:
+    if (
+        hasattr(coordinator.api_client, "parsers")
+        and device_id in coordinator.api_client.parsers
+    ):
         parser = coordinator.api_client.parsers[device_id]
         parser_data = {
             "type": type(parser).__name__,
-            "attributes": list(parser.attributes.keys()) if hasattr(parser, "attributes") else [],
+            "attributes": list(parser.attributes.keys())
+            if hasattr(parser, "attributes")
+            else [],
         }
 
     # Combine device data

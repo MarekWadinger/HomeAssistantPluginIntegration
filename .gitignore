@@ -122,4 +122,4 @@ Thumbs.db
 # Home Assistant
 .storage/
 deps/
-.homeassistant_analytics.json 
+.homeassistant_analytics.json

@@ -8,8 +8,6 @@ from .base import BaseDeviceParser
 from .base_bean import BaseBeanParser
 from .bean_006_299 import Split006299Parser
 from .hum_007 import Humidity007Parser
-from .split_ac_009_199 import SplitAC009199Parser
-from .window_ac_008_399 import WindowAC008399Parser
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,25 +33,8 @@ def get_device_parser(
     # 预设的设备类型集合
     supported_device_types = ["009", "008", "006", "016"]
     if device_type in supported_device_types:
-        parser_class = BaseBeanParser
         _LOGGER.debug("Using default parser for device type %s", device_type)
-        try:
-            static_data = await self.async_get_property_list(
-                device_type, feature_code
-            )
-            _LOGGER.debug(
-                "Static data for device %s: %s: %s",
-                device_type,
-                feature_code,
-                static_data,
-            )
-        except Exception as query_err:
-            _LOGGER.error(
-                "Error querying static data for device %s: %s",
-                feature_code,
-                query_err,
-            )
-        return parser_class
+        return BaseBeanParser
     else:
         _LOGGER.warning("Unsupported device type: %s", device_type)
         raise ValueError(f"Unsupported device type: {device_type}")

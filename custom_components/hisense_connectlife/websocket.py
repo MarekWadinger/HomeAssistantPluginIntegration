@@ -14,6 +14,7 @@ from .models import ApiClientProtocol, NotificationInfo
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class HisenseWebSocket:
     """WebSocket client for Hisense AC."""
 
@@ -52,18 +53,25 @@ class HisenseWebSocket:
             response = await self.api_client._api_request(
                 "POST",
                 "/msg/registerPhoneDevice",
-                data={"phoneCode": phone_code}
+                data={"phoneCode": phone_code},
             )
             success = response.get("resultCode") == 0
-            _LOGGER.debug("Phone code registration %s", "successful" if success else "failed")
+            _LOGGER.debug(
+                "Phone code registration %s",
+                "successful" if success else "failed",
+            )
             return success
         except Exception as err:
             _LOGGER.error("Failed to register phone code: %s", err)
             return False
 
-    async def _get_notification_info(self, phone_code: str) -> Optional[NotificationInfo]:
+    async def _get_notification_info(
+        self, phone_code: str
+    ) -> Optional[NotificationInfo]:
         """Get notification server information."""
-        _LOGGER.debug("Fetching notification info for phone code: %s", phone_code)
+        _LOGGER.debug(
+            "Fetching notification info for phone code: %s", phone_code
+        )
         try:
             response = await self.api_client._api_request(
                 "GET",
@@ -72,13 +80,19 @@ class HisenseWebSocket:
                     "pageNo": "1",
                     "pageSize": "10",
                     "phoneCode": phone_code,
-                    "queryType": 2
-                }
+                    "queryType": 2,
+                },
             )
             notification_info = NotificationInfo.from_json(response)
-            _LOGGER.debug("Received notification info - Server: %s:%s", 
-                         notification_info.push_server_ip if notification_info else "N/A",
-                         notification_info.push_server_ssl_port if notification_info else "N/A")
+            _LOGGER.debug(
+                "Received notification info - Server: %s:%s",
+                notification_info.push_server_ip
+                if notification_info
+                else "N/A",
+                notification_info.push_server_ssl_port
+                if notification_info
+                else "N/A",
+            )
             return notification_info
         except Exception as err:
             _LOGGER.error("Failed to get notification info: %s", err)
@@ -90,8 +104,11 @@ class HisenseWebSocket:
             _LOGGER.error("Missing notification info or phone code")
             return
 
-        channel = (self._notification_info.push_channels[0].push_channel
-                  if self._notification_info.push_channels else "")
+        channel = (
+            self._notification_info.push_channels[0].push_channel
+            if self._notification_info.push_channels
+            else ""
+        )
         if not channel:
             _LOGGER.error("No push channel available")
             return
@@ -100,7 +117,9 @@ class HisenseWebSocket:
 
         try:
             # Get fresh token before connection
-            access_token = await self.api_client.oauth_session.async_get_access_token()
+            access_token = (
+                await self.api_client.oauth_session.async_get_access_token()
+            )
 
             ws_url = (
                 f"wss://{self._notification_info.push_server_ip}:"
@@ -110,9 +129,7 @@ class HisenseWebSocket:
             _LOGGER.debug("WebSocket URL: %s", ws_url)
 
             self._ws = await self.session.ws_connect(
-                ws_url,
-                heartbeat=self._ping_interval,
-                ssl=True
+                ws_url, heartbeat=self._ping_interval, ssl=True
             )
             _LOGGER.info("WebSocket connection established")
             self._fail_count = 0
@@ -127,12 +144,16 @@ class HisenseWebSocket:
 
             # Exponential backoff for reconnection attempts
             retry_delay = min(30, 5 * (2 ** (self._fail_count - 1)))
-            _LOGGER.debug("Waiting %s seconds before reconnecting", retry_delay)
+            _LOGGER.debug(
+                "Waiting %s seconds before reconnecting", retry_delay
+            )
             await asyncio.sleep(retry_delay)
 
             if not self._closing:
                 # Refresh connection info before retry
-                self._notification_info = await self._get_notification_info(self._phone_code)
+                self._notification_info = await self._get_notification_info(
+                    self._phone_code
+                )
                 if self._notification_info:
                     await self._connect_ws()
 
@@ -149,21 +170,31 @@ class HisenseWebSocket:
                     if current_time - self._last_message_time < 1:
                         _LOGGER.debug("Skipping message due to rate limit")
                         continue
-                    self._last_message_time = current_time  # 更新上一次处理消息的时间
+                    self._last_message_time = (
+                        current_time  # 更新上一次处理消息的时间
+                    )
 
-                    _LOGGER.debug("Received raw WebSocket message: %s", msg.data)
+                    _LOGGER.debug(
+                        "Received raw WebSocket message: %s", msg.data
+                    )
                     try:
                         # Decode base64 and then UTF-8
                         base64_decoded = base64.b64decode(msg.data)
-                        decoded_content = base64_decoded.decode('utf-8')
-                        _LOGGER.debug("Decoded message content: %s", decoded_content)
-                        
+                        decoded_content = base64_decoded.decode("utf-8")
+                        _LOGGER.debug(
+                            "Decoded message content: %s", decoded_content
+                        )
+
                         data = json.loads(decoded_content)
                         self.message_callback(data)
                     except base64.binascii.Error as err:
-                        _LOGGER.error("Failed to decode base64 message: %s", err)
+                        _LOGGER.error(
+                            "Failed to decode base64 message: %s", err
+                        )
                     except UnicodeDecodeError as err:
-                        _LOGGER.error("Failed to decode UTF-8 content: %s", err)
+                        _LOGGER.error(
+                            "Failed to decode UTF-8 content: %s", err
+                        )
                     except json.JSONDecodeError as err:
                         _LOGGER.error("Failed to parse JSON message: %s", err)
                 elif msg.type == aiohttp.WSMsgType.ERROR:
@@ -173,7 +204,9 @@ class HisenseWebSocket:
                     _LOGGER.debug("WebSocket connection closed")
                     break
                 else:
-                    _LOGGER.debug("Received unknown message type: %s", msg.type)
+                    _LOGGER.debug(
+                        "Received unknown message type: %s", msg.type
+                    )
         except Exception as err:
             _LOGGER.error("WebSocket listener error: %s", err)
         finally:
@@ -186,7 +219,9 @@ class HisenseWebSocket:
             # Add delay before reconnection attempt
             await asyncio.sleep(5)
             # Refresh connection info
-            self._notification_info = await self._get_notification_info(self._phone_code)
+            self._notification_info = await self._get_notification_info(
+                self._phone_code
+            )
             if self._notification_info:
                 await self._connect_ws()
         except Exception as err:
@@ -205,7 +240,9 @@ class HisenseWebSocket:
                 return
 
             # Step 3: Get notification info
-            self._notification_info = await self._get_notification_info(self._phone_code)
+            self._notification_info = await self._get_notification_info(
+                self._phone_code
+            )
             if not self._notification_info:
                 _LOGGER.error("Failed to get notification info")
                 return

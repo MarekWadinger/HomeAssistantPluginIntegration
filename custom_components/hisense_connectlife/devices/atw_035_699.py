@@ -1,19 +1,21 @@
 """Parser for Split AC (009-199) device type."""
+
 from typing import Dict
 
 from .base import BaseDeviceParser, DeviceAttribute
 
+
 class SplitWater035699Parser(BaseDeviceParser):
     """Parser for Split AC 009-199 device type."""
-    
+
     @property
     def device_type(self) -> str:
         return "035"
-        
+
     @property
     def feature_code(self) -> str:
         return "699"
-        
+
     @property
     def attributes(self) -> Dict[str, DeviceAttribute]:
         return {
@@ -30,9 +32,9 @@ class SplitWater035699Parser(BaseDeviceParser):
                     "5": "热水+制冷",
                     "16": "热水+自动",
                     "3": "热水",
-                    "6": "热水+制热"
+                    "6": "热水+制热",
                 },
-                read_write="RW"
+                read_write="RW",
             ),
             "t_temp": DeviceAttribute(
                 key="t_temp",
@@ -40,7 +42,7 @@ class SplitWater035699Parser(BaseDeviceParser):
                 attr_type="Number",
                 step=1,
                 value_range="16~32,61~90",
-                read_write="RW"
+                read_write="RW",
             ),
             "t_power": DeviceAttribute(
                 key="t_power",
@@ -48,11 +50,8 @@ class SplitWater035699Parser(BaseDeviceParser):
                 attr_type="Enum",
                 step=1,
                 value_range="0,1",
-                value_map={
-                    "0": "关",
-                    "1": "开"
-                },
-                read_write="RW"
+                value_map={"0": "关", "1": "开"},
+                read_write="RW",
             ),
             "f_zone1water_temp1": DeviceAttribute(
                 key="f_zone1water_temp1",
@@ -60,7 +59,7 @@ class SplitWater035699Parser(BaseDeviceParser):
                 attr_type="Number",
                 step=1,
                 value_range="16~32,61~90",
-                read_write="R"
+                read_write="R",
             ),
             "f_zone2water_temp2": DeviceAttribute(
                 key="f_zone2water_temp2",
@@ -68,7 +67,7 @@ class SplitWater035699Parser(BaseDeviceParser):
                 attr_type="Number",
                 step=1,
                 value_range="16~32,61~90",
-                read_write="R"
+                read_write="R",
             ),
             "f_water_tank_temp": DeviceAttribute(
                 key="f_water_tank_temp",
@@ -76,7 +75,7 @@ class SplitWater035699Parser(BaseDeviceParser):
                 attr_type="Number",
                 step=1,
                 value_range="16~32,61~90",
-                read_write="R"
+                read_write="R",
             ),
             "t_zone1water_settemp1": DeviceAttribute(
                 key="t_zone1water_settemp1",
@@ -84,7 +83,7 @@ class SplitWater035699Parser(BaseDeviceParser):
                 attr_type="Number",
                 step=1,
                 value_range="16~32,61~90",
-                read_write="RW"
+                read_write="RW",
             ),
             "t_zone2water_settemp2": DeviceAttribute(
                 key="t_zone2water_settemp2",
@@ -92,7 +91,7 @@ class SplitWater035699Parser(BaseDeviceParser):
                 attr_type="Number",
                 step=1,
                 value_range="16~32,61~90",
-                read_write="RW"
+                read_write="RW",
             ),
             "t_dhw_temp": DeviceAttribute(
                 key="t_dhw_temp",
@@ -100,13 +99,13 @@ class SplitWater035699Parser(BaseDeviceParser):
                 attr_type="Number",
                 step=1,
                 value_range="16~32,61~90",
-                read_write="RW"
+                read_write="RW",
             ),
             "f_power_consumption": DeviceAttribute(
                 key="f_power_consumption",
                 name="电量累积消耗值",
                 attr_type="Number",
-                read_write="R"
+                read_write="R",
             ),
         }
 

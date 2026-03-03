@@ -7,7 +7,6 @@ import logging
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_entry_oauth2_flow
 
-from .const import CLIENT_ID, CLIENT_SECRET, OAUTH2_AUTHORIZE, OAUTH2_TOKEN
 from .oauth2 import HisenseOAuth2Implementation
 
 _LOGGER = logging.getLogger(__name__)
