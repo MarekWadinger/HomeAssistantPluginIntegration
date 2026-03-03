@@ -3,6 +3,7 @@ import json
 import logging
 import uuid
 import base64
+import binascii
 from typing import Any, Callable, Optional
 import time
 
@@ -187,7 +188,7 @@ class HisenseWebSocket:
 
                         data = json.loads(decoded_content)
                         self.message_callback(data)
-                    except base64.binascii.Error as err:
+                    except binascii.Error as err:
                         _LOGGER.error(
                             "Failed to decode base64 message: %s", err
                         )

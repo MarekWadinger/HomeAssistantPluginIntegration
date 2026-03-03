@@ -14,7 +14,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.core import Event
-from homeassistant.helpers.dispatcher import callback
+from homeassistant.helpers.dispatcher import async_dispatcher_send, callback
 
 from .const import DOMAIN, StatusKey
 from .coordinator import HisenseACPluginDataUpdateCoordinator
@@ -267,6 +267,7 @@ async def async_setup_entry(
 class HisenseSwitch(CoordinatorEntity, SwitchEntity):
     """Representation of a Hisense AC switch."""
 
+    coordinator: HisenseACPluginDataUpdateCoordinator
     _attr_has_entity_name = True
     _debounce_delay = 10
 
@@ -276,7 +277,7 @@ class HisenseSwitch(CoordinatorEntity, SwitchEntity):
         device: HisenseDeviceInfo,
         switch_type: str,
         switch_info: dict,
-        expected_value: str = None,  # 新增参数
+        expected_value: str | None = None,  # 新增参数
     ) -> None:
         """Initialize the switch entity."""
         super().__init__(coordinator)
@@ -285,7 +286,7 @@ class HisenseSwitch(CoordinatorEntity, SwitchEntity):
         self.cached = False
         self.feature_code = device.feature_code
         self._switch_info = switch_info
-        self._device_id = device.puid
+        self._device_id: str = device.puid
         self._switch_type = switch_type
         self._switch_key = switch_info["key"]
         self._attr_unique_id = f"{device.device_id}_{switch_type}"
@@ -312,7 +313,7 @@ class HisenseSwitch(CoordinatorEntity, SwitchEntity):
         )
 
     @callback
-    def _handle_device_state_change(self, event: Event) -> None:
+    def _handle_device_state_change(self, event: Event[Any]) -> None:
         """处理设备状态变化事件。"""
         _LOGGER.info("设备状态变化事件: %s", event.data)
         new_state = event.data.get("new_state")
@@ -536,8 +537,10 @@ class HisenseSwitch(CoordinatorEntity, SwitchEntity):
                 current_time - self._last_action_time
             )
             # 延后触发更新
-            self.hass.helpers.dispatcher.async_dispatcher_send(
-                f"{DOMAIN}_switch_update_{self.entity_id}", remaining_time
+            async_dispatcher_send(
+                self.hass,
+                f"{DOMAIN}_switch_update_{self.entity_id}",
+                remaining_time,
             )
         else:
             # 正常更新状态

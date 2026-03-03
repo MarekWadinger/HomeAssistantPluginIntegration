@@ -13,14 +13,17 @@ from homeassistant.helpers.update_coordinator import (
     UpdateFailed,
 )
 
-from .api import DeviceInfo, HisenseApiClient
+from .api import HisenseApiClient
 from .const import UPDATE_INTERVAL
+from .models import DeviceInfo
 from .websocket import HisenseWebSocket
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class HisenseACPluginDataUpdateCoordinator(DataUpdateCoordinator):
+class HisenseACPluginDataUpdateCoordinator(
+    DataUpdateCoordinator[dict[str, DeviceInfo]]
+):
     """Class to manage fetching data from the API."""
 
     def __init__(
@@ -71,7 +74,7 @@ class HisenseACPluginDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.error("Error setting up coordinator: %s", error)
             return False
 
-    async def _async_update_data(self):
+    async def _async_update_data(self) -> dict[str, DeviceInfo]:
         """Update data via library."""
         try:
             _LOGGER.debug("Starting periodic update for all devices")
@@ -155,6 +158,13 @@ class HisenseACPluginDataUpdateCoordinator(DataUpdateCoordinator):
         except Exception as error:
             _LOGGER.error("Error controlling device %s: %s", puid, error)
             raise UpdateFailed(error) from error
+
+    async def set_away_mode(self, puid: str, enabled: bool) -> None:
+        """Set away mode for a device."""
+        await self.async_control_device(
+            puid=puid,
+            properties={"t_away_mode": "1" if enabled else "0"},
+        )
 
     def get_device(self, device_id: str) -> DeviceInfo | None:
         """Get device by ID or puid."""

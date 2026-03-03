@@ -325,10 +325,10 @@ class HisenseApiClient:
         self,
         method: str,
         endpoint: str,
-        data: dict | None = None,
-        headers: dict | None = None,
+        data: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
         _retry: bool = False,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Make an API request."""
         _LOGGER.debug("Making API request: %s %s", method, endpoint)
         try:
@@ -425,10 +425,10 @@ class HisenseApiClient:
                 _LOGGER.debug("Body: %s", json.dumps(request_data, indent=2))
 
             # Convert request_data to JSON string for POST requests
-            data = json.dumps(request_data) if request_data else None
+            body = json.dumps(request_data) if request_data else None
 
             async with self.session.request(
-                method, url, data=data, headers=headers
+                method, url, data=body, headers=headers
             ) as resp:
                 response_text = await resp.text()
 
@@ -521,6 +521,18 @@ class HisenseApiClient:
                 deviceFeatureCode = device_data.get("deviceFeatureCode")
                 try:
                     device = DeviceInfo(device_data)
+                    if not device.device_id or not device.puid:
+                        _LOGGER.warning(
+                            "Device missing device_id or puid, skipping: %s",
+                            device_data,
+                        )
+                        continue
+                    if not deviceTypeCode or not deviceFeatureCode:
+                        _LOGGER.warning(
+                            "Device missing type/feature code, skipping: %s",
+                            device.device_id,
+                        )
+                        continue
                     supported_device_types = [
                         "009",
                         "008",
@@ -551,7 +563,9 @@ class HisenseApiClient:
                             self.static_data[device.device_id] = re.get(
                                 "status"
                             )
-                        propertyList = response.get("status")
+                        propertyList: list[dict[str, Any]] = (
+                            response.get("status") or []
+                        )
                         _LOGGER.debug(
                             "Static data for propertyList %s: %s",
                             deviceFeatureCode,
@@ -603,10 +617,13 @@ class HisenseApiClient:
                                     parser = new_parser
 
                             self.parsers[device.device_id] = parser
+                            stored_parser = self.parsers.get(device.device_id)
                             _LOGGER.debug(
                                 "三联供设备解析字段 %s:%s",
                                 device.device_id,
-                                self.parsers.get(device.device_id).attributes,
+                                stored_parser.attributes
+                                if stored_parser
+                                else None,
                             )
                         elif isinstance(parser, Humidity007Parser):
                             filtered_parser = self.create_humidity_parser(
@@ -619,7 +636,7 @@ class HisenseApiClient:
                             _LOGGER.error(
                                 "Parser is not an instance of BaseBeanParser"
                             )
-                            return
+                            continue
 
                         # 判断是否有电量功能
                         has_power = False
@@ -749,7 +766,7 @@ class HisenseApiClient:
                             power_response = await self.async_get_hour_power(
                                 current_date, device.puid
                             )
-                            power = power_response.get("status")
+                            power = power_response.get("status") or {}
                             current_time = datetime.now()
                             previous_hour = (
                                 current_time - timedelta(hours=1)
@@ -1025,8 +1042,10 @@ class HisenseApiClient:
         if self._websocket is None:
             self._websocket = HisenseWebSocket(
                 self.hass,
-                self.oauth_session,
-                self._handle_status_update,
+                self,
+                lambda msg: self._handle_status_update(
+                    msg.get("deviceId", ""), msg
+                ),
             )
             await self._websocket.async_connect()
 
@@ -1061,6 +1080,8 @@ class HisenseApiClient:
         )
         try:
             parser = self.parsers.get(device.device_id)
+            if not parser:
+                return device.status
             parsed_status = parser.parse_status(device.status)
             _LOGGER.info(
                 "Device %s (%s-%s) status: %s",

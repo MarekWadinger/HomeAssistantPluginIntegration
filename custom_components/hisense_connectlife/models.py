@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from abc import abstractmethod
-from dataclasses import dataclass
 import logging
-from typing import Any, Dict, List, Optional, Protocol
+from dataclasses import dataclass
+from typing import Any, List, Protocol
 
 from homeassistant.exceptions import HomeAssistantError
 
@@ -18,15 +17,18 @@ _LOGGER = logging.getLogger(__name__)
 class ApiClientProtocol(Protocol):
     """Protocol for API client."""
 
-    @abstractmethod
     async def _api_request(
-        self, method: str, path: str, data: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self,
+        method: str,
+        endpoint: str,
+        data: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+        _retry: bool = False,
+    ) -> dict[str, Any]:
         """Make API request."""
         ...
 
     @property
-    @abstractmethod
     def oauth_session(self) -> Any:
         """Get OAuth session."""
         ...
@@ -86,19 +88,20 @@ class DeviceInfo:
             )
             data = {}
 
-        # Basic device information
-        self.wifi_id = data.get("wifiId")
-        self.device_id = data.get("deviceId")
-        self.puid = data.get("puid")
-        self.name = data.get("deviceNickName")
-        self.feature_code = data.get("deviceFeatureCode")
-        self.feature_name = data.get("deviceFeatureName")
-        self.type_code = data.get("deviceTypeCode")
-        self.type_name = data.get("deviceTypeName")
-        self.bind_time = data.get("bindTime")
-        self.role = data.get("role")
-        self.room_id = data.get("roomId")
-        self.room_name = data.get("roomName")
+        # Core device identity (always present in API responses)
+        self.device_id: str = data.get("deviceId", "")
+        self.puid: str = data.get("puid", "")
+        self.name: str = data.get("deviceNickName", "")
+        self.type_code: str = data.get("deviceTypeCode", "")
+        self.type_name: str = data.get("deviceTypeName", "")
+        self.feature_code: str = data.get("deviceFeatureCode", "")
+        self.feature_name: str = data.get("deviceFeatureName", "")
+        # Optional metadata
+        self.wifi_id: str | None = data.get("wifiId")
+        self.bind_time: str | None = data.get("bindTime")
+        self.role: str | None = data.get("role")
+        self.room_id: str | None = data.get("roomId")
+        self.room_name: str | None = data.get("roomName")
         self._failed_data = []
         # Status information
         status_list = data.get("statusList", {})
@@ -210,6 +213,8 @@ class DeviceInfo:
 
             if not parser:
                 return False
+
+            return False
 
     def to_dict(self) -> dict[str, Any]:
         """Convert device info to dictionary."""

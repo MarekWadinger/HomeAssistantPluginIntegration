@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import asyncio
 from datetime import datetime, timedelta
+from typing import Any
 
 from homeassistant.components.humidifier import (
     HumidifierEntity,
@@ -98,6 +99,7 @@ async def async_setup_entry(
 class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
     """Hisense Dehumidifier entity implementation."""
 
+    coordinator: HisenseACPluginDataUpdateCoordinator
     _attr_has_entity_name = False
     _attr_supported_features = HumidifierEntityFeature.MODES
     _attr_target_humidity_step = 5  # 修改步长为5
@@ -113,7 +115,7 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
         self.static_data = coordinator.api_client.static_data.get(
             device.device_id
         )
-        self._device_id = device.puid
+        self._device_id: str = device.puid
         self._attr_unique_id = f"{device.device_id}_dehumidifier"
         self._attr_name = device.name
         self._attr_device_info = DeviceInfo(
@@ -133,7 +135,7 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
                     "Using parser for device type %s-%s:%s",
                     device_type.type_code,
                     device_type.feature_code,
-                    self._parser.attributes,
+                    self._parser.attributes if self._parser else None,
                 )
                 # 保存 device_type 的 type_code 和 feature_code 供后续使用
                 self._current_type_code = device_type.type_code
@@ -207,6 +209,8 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
 
     def _get_supported_modes(self, device: HisenseDeviceInfo) -> list[str]:
         """获取设备支持的模式"""
+        if not self._parser:
+            return []
         _LOGGER.debug(
             "当前除湿机的102-64属性 %s-%s:%s",
             device.type_code,
@@ -273,17 +277,13 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
             and datetime.now() - self._last_manual_control_time
             < self._debounce_time
         ):
-            return (
-                self._last_cloud_state
-                if self._last_cloud_state is not None
-                else False
-            )
+            return bool(self._last_cloud_state)
 
         power_status = self._device.get_status_value(StatusKey.POWER)
         self._last_cloud_state = power_status == "1"
         return self._last_cloud_state
 
-    async def async_turn_on(self) -> None:
+    async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the entity on."""
         try:
             _LOGGER.debug("Turning on device %s", self._device_id)
@@ -295,7 +295,7 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
         except Exception as err:
             _LOGGER.error("Failed to turn on: %s", err)
 
-    async def async_turn_off(self) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the entity off."""
         try:
             _LOGGER.debug("Turning off device %s", self._device_id)
@@ -390,9 +390,9 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
 
             # Ensure the adjusted humidity is still within the valid range
             if humidity < self._attr_min_humidity:
-                humidity = self._attr_min_humidity
+                humidity = int(self._attr_min_humidity)
             elif humidity > self._attr_max_humidity:
-                humidity = self._attr_max_humidity
+                humidity = int(self._attr_max_humidity)
 
             self._last_manual_control_time = datetime.now()
             await self.coordinator.async_control_device(
@@ -521,6 +521,6 @@ class HisenseDehumidifier(CoordinatorEntity, HumidifierEntity):
     def available_modes(self) -> list[str]:
         translated_modes = [
             self._get_translation(mode_key)
-            for mode_key in self._attr_available_modes
+            for mode_key in (self._attr_available_modes or [])
         ]
         return translated_modes

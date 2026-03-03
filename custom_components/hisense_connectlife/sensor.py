@@ -765,6 +765,7 @@ async def async_setup_entry(
 class HisenseSensor(CoordinatorEntity, SensorEntity):
     """Representation of a Hisense AC sensor."""
 
+    coordinator: HisenseACPluginDataUpdateCoordinator
     _attr_has_entity_name = True
 
     def __init__(
@@ -775,7 +776,7 @@ class HisenseSensor(CoordinatorEntity, SensorEntity):
         sensor_info: dict,
     ) -> None:
         super().__init__(coordinator)
-        self._device_id = device.device_id
+        self._device_id: str = device.device_id
         self._sensor_type = sensor_type
         self._sensor_key = sensor_info["key"]
         self._sensor_info = sensor_info
@@ -801,8 +802,7 @@ class HisenseSensor(CoordinatorEntity, SensorEntity):
             )
             return
         """处理协调器更新，实现动态实体管理"""
-        # 获取当前设备状态
-        device = self.coordinator.get_device(self._device_id)
+        # 获取当前设备状态 (reuse the already-fetched device)
         current_value = device.get_status_value(self._sensor_key)
 
         # 故障传感器特殊处理

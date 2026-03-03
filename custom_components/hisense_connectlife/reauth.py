@@ -8,8 +8,8 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import config_entry_oauth2_flow
 
 from .const import DOMAIN
@@ -41,7 +41,7 @@ class HisenseReauthFlowHandler(
 
     async def async_step_reauth(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle reauth flow."""
         self._reauth_entry = self.hass.config_entries.async_get_entry(
             self.context["entry_id"]
@@ -50,7 +50,7 @@ class HisenseReauthFlowHandler(
 
     async def async_step_reauth_confirm(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Confirm reauth flow."""
         if user_input is None:
             return self.async_show_form(
@@ -62,6 +62,9 @@ class HisenseReauthFlowHandler(
             )
 
         # Get the OAuth2 implementation
+        if not self._reauth_entry:
+            return self.async_abort(reason="reauth_entry_not_found")
+
         implementation = await config_entry_oauth2_flow.async_get_config_entry_implementation(
             self.hass, self._reauth_entry
         )
@@ -84,7 +87,7 @@ class HisenseReauthFlowHandler(
 
     async def async_step_reauth_complete(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle reauth external step completion."""
         if user_input is None:
             return self.async_show_form(
@@ -95,9 +98,9 @@ class HisenseReauthFlowHandler(
                 },
             )
 
-        return await super().async_step_reauth(user_input)
+        return await self.async_step_creation(user_input)
 
-    async def async_oauth_create_entry(self, data: dict) -> FlowResult:
+    async def async_oauth_create_entry(self, data: dict) -> ConfigFlowResult:
         """Create an entry for the reauth flow."""
         if self._reauth_entry is None:
             return self.async_abort(reason="reauth_entry_not_found")

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from homeassistant.components.water_heater import (
     WaterHeaterEntity,
@@ -100,6 +101,7 @@ async def async_setup_entry(
 class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
     """Hisense ATW 035-699 Water Heater entity implementation."""
 
+    coordinator: HisenseACPluginDataUpdateCoordinator
     _attr_has_entity_name = True
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_supported_features = (
@@ -125,7 +127,7 @@ class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
     ) -> None:
         """Initialize the water heater entity."""
         super().__init__(coordinator)
-        self._device_id = device.puid
+        self._device_id: str = device.puid
         self._attr_unique_id = f"{device.device_id}_atw_035_699_water_heater"
         self._attr_name = device.name
         self._attr_device_info = DeviceInfo(
@@ -177,6 +179,8 @@ class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
     def _get_supported_modes(self, device: HisenseDeviceInfo) -> list[str]:
         """获取设备支持的操作模式"""
         modes = [STATE_OFF]
+        if not self._parser:
+            return modes
         work_mode_attr = self._parser.attributes.get(StatusKey.MODE)
         if work_mode_attr and work_mode_attr.value_map:
             for key, value in work_mode_attr.value_map.items():
@@ -254,7 +258,7 @@ class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
         power_status = self._device.get_status_value(StatusKey.POWER)
         return power_status == "1"
 
-    async def async_turn_on(self) -> None:
+    async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the entity on."""
         try:
             _LOGGER.debug("Turning on device %s", self._device_id)
@@ -265,7 +269,7 @@ class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
         except Exception as err:
             _LOGGER.error("Failed to turn on: %s", err)
 
-    async def async_turn_off(self) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the entity off."""
         try:
             _LOGGER.debug("Turning off device %s", self._device_id)

@@ -29,7 +29,7 @@ class OAuth2Session:
     def __init__(
         self,
         hass: HomeAssistant,
-        oauth2_implementation: HisenseOAuth2Implementation,
+        oauth2_implementation: config_entry_oauth2_flow.AbstractOAuth2Implementation,
         token: dict[str, Any] | None = None,
     ) -> None:
         """Initialize OAuth2 session."""

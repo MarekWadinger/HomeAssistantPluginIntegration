@@ -116,6 +116,7 @@ async def async_setup_entry(
 class HisenseClimate(CoordinatorEntity, ClimateEntity):
     """Hisense AC climate entity."""
 
+    coordinator: HisenseACPluginDataUpdateCoordinator
     _attr_has_entity_name = False
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_min_temp = MIN_TEMP
@@ -136,7 +137,7 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
     ) -> None:
         """Initialize the climate entity."""
         super().__init__(coordinator)
-        self._device_id = device.puid
+        self._device_id: str = device.puid
         self._attr_unique_id = f"{device.device_id}_climate"
         self._attr_name = device.name
         self.hasAuto = False
@@ -245,13 +246,14 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
         # 设置属性
         self._attr_min_temp = min_temp
         self._attr_max_temp = max_temp
-        _LOGGER.debug(
-            "设置温度上下限 %s-%s:%s:%s",
-            device_type.type_code,
-            device_type.feature_code,
-            self._attr_min_temp,
-            self._attr_max_temp,
-        )
+        if device_type:
+            _LOGGER.debug(
+                "设置温度上下限 %s-%s:%s:%s",
+                device_type.type_code,
+                device_type.feature_code,
+                self._attr_min_temp,
+                self._attr_max_temp,
+            )
         if not hasattr(self, "_attr_fan_modes"):
             self._attr_fan_modes = [
                 FAN_AUTO,
@@ -528,7 +530,7 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
 
     @property
     def fan_modes(self):
-        modes = list(self._attr_fan_modes)
+        modes = list(self._attr_fan_modes or [])
         if self.hvac_mode == HVACMode.FAN_ONLY:
             if FAN_AUTO in modes:
                 modes.remove(FAN_AUTO)
@@ -595,7 +597,7 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
             features &= ~ClimateEntityFeature.SWING_MODE
 
         # 新增逻辑：如果风速模式数量<=1（仅自动模式），则隐藏风速设置
-        if len(self._attr_swing_modes) <= 1:
+        if len(self._attr_swing_modes or []) <= 1:
             features &= ~ClimateEntityFeature.SWING_MODE
         # 根据当前模式决定是否支持目标温度设置
         current_mode = self.hvac_mode

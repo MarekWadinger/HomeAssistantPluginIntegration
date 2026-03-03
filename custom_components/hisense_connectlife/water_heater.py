@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from homeassistant.components.water_heater import (
     WaterHeaterEntity,
@@ -109,6 +110,7 @@ async def async_setup_entry(
 class HisenseWaterHeater(CoordinatorEntity, WaterHeaterEntity):
     """Hisense Water Heater entity implementation."""
 
+    coordinator: HisenseACPluginDataUpdateCoordinator
     _attr_has_entity_name = False
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_min_temp = MIN_TEMP
@@ -156,7 +158,7 @@ class HisenseWaterHeater(CoordinatorEntity, WaterHeaterEntity):
             "Target temperature step set to: %s",
             self._attr_target_temperature_step,
         )
-        self._device_id = device.puid
+        self._device_id: str = device.puid
         self._attr_unique_id = f"{device.device_id}_water_heater"
         self._attr_name = device.name
         self.current_mode = OPERATION_MODE_MAP.get(
@@ -207,6 +209,8 @@ class HisenseWaterHeater(CoordinatorEntity, WaterHeaterEntity):
     def _get_supported_modes(self, device: HisenseDeviceInfo) -> list[str]:
         """获取设备支持的操作模式"""
         modes = [STATE_OFF]
+        if not self._parser:
+            return modes
         work_mode_attr = self._parser.attributes.get(StatusKey.MODE)
         if work_mode_attr and work_mode_attr.value_map:
             for key, value in work_mode_attr.value_map.items():
@@ -272,7 +276,7 @@ class HisenseWaterHeater(CoordinatorEntity, WaterHeaterEntity):
         power_status = self._device.get_status_value(StatusKey.POWER)
         return power_status == "1"
 
-    async def async_turn_on(self) -> None:
+    async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the entity on."""
         try:
             _LOGGER.debug("Turning on device %s", self._device_id)
@@ -283,7 +287,7 @@ class HisenseWaterHeater(CoordinatorEntity, WaterHeaterEntity):
         except Exception as err:
             _LOGGER.error("Failed to turn on: %s", err)
 
-    async def async_turn_off(self) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the entity off."""
         try:
             _LOGGER.debug("Turning off device %s", self._device_id)
@@ -348,7 +352,8 @@ class HisenseWaterHeater(CoordinatorEntity, WaterHeaterEntity):
             "operation_list当前支持模式：%s", self._attr_operation_list
         )
         return [
-            self._get_translation(mode) for mode in self._attr_operation_list
+            self._get_translation(mode)
+            for mode in (self._attr_operation_list or [])
         ]
 
     @property
@@ -512,6 +517,7 @@ REVERSE_OPERATION1_MAP = {v: k for k, v in OPERATION1_MODE_MAP.items()}
 class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
     """Hisense ATW 035-699 Water Heater entity implementation."""
 
+    coordinator: HisenseACPluginDataUpdateCoordinator
     _attr_has_entity_name = False
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_supported_features = (
@@ -562,7 +568,7 @@ class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
     ) -> None:
         """Initialize the water heater entity."""
         super().__init__(coordinator)
-        self._device_id = device.puid
+        self._device_id: str = device.puid
         self._attr_unique_id = f"{device.device_id}_atw_035_699_water_heater"
         self._attr_name = device.name
         self._attr_device_info = DeviceInfo(
@@ -572,7 +578,7 @@ class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
             model=f"{device.type_name} ({device.feature_name})",
         )
         _LOGGER.debug("进入ATW 035-699热水器实体: %s", device.feature_name)
-        self.current_mode = self._device.get_status_value(StatusKey.MODE)
+        self.current_mode = device.get_status_value(StatusKey.MODE)
         device_type = device.get_device_type()
         if device_type:
             try:
@@ -612,6 +618,8 @@ class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
     def _get_supported_modes(self, device: HisenseDeviceInfo) -> list[str]:
         """获取设备支持的操作模式"""
         modes = [STATE_OFF]
+        if not self._parser:
+            return modes
         work_mode_attr = self._parser.attributes.get(StatusKey.MODE)
         if work_mode_attr and work_mode_attr.value_map:
             for key, value in work_mode_attr.value_map.items():
@@ -771,7 +779,7 @@ class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
         power_status = self._device.get_status_value(StatusKey.POWER)
         return power_status == "1"
 
-    async def async_turn_on(self) -> None:
+    async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the entity on."""
         try:
             _LOGGER.debug("Turning on device %s", self._device_id)
@@ -782,7 +790,7 @@ class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
         except Exception as err:
             _LOGGER.error("Failed to turn on: %s", err)
 
-    async def async_turn_off(self) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the entity off."""
         try:
             _LOGGER.debug("Turning off device %s", self._device_id)
@@ -826,7 +834,8 @@ class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
             "operation_list当前支持模式：%s", self._attr_operation_list
         )
         return [
-            self._get_translation(mode) for mode in self._attr_operation_list
+            self._get_translation(mode)
+            for mode in (self._attr_operation_list or [])
         ]
 
     @property
@@ -941,7 +950,9 @@ class Atw035699WaterHeater(CoordinatorEntity, WaterHeaterEntity):
     @property
     def temperatureRange(self):
         """获取当前模式的温度区间"""
-        return self.getTemperatureRangeBasedOnMode(self.current_operation)
+        return self.getTemperatureRangeBasedOnMode(
+            self.current_operation or ""
+        )
 
     @property
     def supported_features(self) -> int:

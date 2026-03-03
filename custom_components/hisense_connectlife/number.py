@@ -121,6 +121,7 @@ async def async_setup_entry(
 class HisenseNumber(CoordinatorEntity, NumberEntity):
     """Representation of a Hisense AC number."""
 
+    coordinator: HisenseACPluginDataUpdateCoordinator
     _attr_has_entity_name = True
     _temperatureRange = [
         # [ModeType.COOL] 制冷
@@ -149,7 +150,7 @@ class HisenseNumber(CoordinatorEntity, NumberEntity):
         """Initialize the number entity."""
         super().__init__(coordinator)
         self.current_mode = None
-        self._device_id = device.puid
+        self._device_id: str = device.puid
         self._number_type = number_type
         self._number_info = number_info
         self._number_key = number_info["key"]
@@ -163,11 +164,11 @@ class HisenseNumber(CoordinatorEntity, NumberEntity):
         )
         self._attr_icon = number_info["icon"]
         self._attr_device_class = number_info.get("device_class")
-        self._attr_mode = number_info.get("mode")
+        self._attr_mode = number_info["mode"]
         self._attr_native_unit_of_measurement = number_info.get("unit")
-        self._attr_native_min_value = float(number_info.get("min_value"))
-        self._attr_native_max_value = float(number_info.get("max_value"))
-        self._attr_native_step = float(number_info.get("step"))
+        self._attr_native_min_value = float(number_info["min_value"])
+        self._attr_native_max_value = float(number_info["max_value"])
+        self._attr_native_step = float(number_info["step"])
         self._attr_entity_registry_enabled_default = True
 
         # 初始化时更新一次温度范围
