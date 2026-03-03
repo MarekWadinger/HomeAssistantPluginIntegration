@@ -18,36 +18,37 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, MIN_TEMP_WATER, MAX_TEMP_WATER
 from .coordinator import HisenseACPluginDataUpdateCoordinator
+from .entity_descriptions import NumberEntityConfig
 from .models import DeviceInfo as HisenseDeviceInfo
 
 _LOGGER = logging.getLogger(__name__)
 
 # Define number types
 NUMBER_TYPES = {
-    "t_zone1water_settemp1": {
-        "key": "t_zone1water_settemp1",
-        "name": "1温区设置值",
-        "icon": "mdi:thermometer",
-        "device_class": NumberDeviceClass.TEMPERATURE,
-        "mode": NumberMode.AUTO,
-        "unit": "°C",
-        "min_value": 16,
-        "max_value": 32,
-        "step": 0.5,
-        "description": "Set 1温区设置值",
-    },
-    "t_zone2water_settemp2": {
-        "key": "t_zone2water_settemp2",
-        "name": "2温区设置值",
-        "icon": "mdi:thermometer",
-        "device_class": NumberDeviceClass.TEMPERATURE,
-        "mode": NumberMode.AUTO,
-        "unit": "°C",
-        "min_value": 16,
-        "max_value": 32,
-        "step": 0.5,
-        "description": "Set 2温区设置值",
-    },
+    "t_zone1water_settemp1": NumberEntityConfig(
+        key="t_zone1water_settemp1",
+        name="1温区设置值",
+        icon="mdi:thermometer",
+        device_class=NumberDeviceClass.TEMPERATURE,
+        mode=NumberMode.AUTO,
+        unit="°C",
+        min_value=16,
+        max_value=32,
+        step=0.5,
+        description="Set 1温区设置值",
+    ),
+    "t_zone2water_settemp2": NumberEntityConfig(
+        key="t_zone2water_settemp2",
+        name="2温区设置值",
+        icon="mdi:thermometer",
+        device_class=NumberDeviceClass.TEMPERATURE,
+        mode=NumberMode.AUTO,
+        unit="°C",
+        min_value=16,
+        max_value=32,
+        step=0.5,
+        description="Set 2温区设置值",
+    ),
 }
 
 
@@ -83,7 +84,7 @@ async def async_setup_entry(
                     parser = coordinator.api_client.parsers.get(
                         device.device_id
                     )
-                    if device.has_attribute(number_info["key"], parser):
+                    if device.has_attribute(number_info.key, parser):
                         if (
                             device.status.get("f_zone2_select") == "0"
                             and number_type == "t_zone2water_settemp2"
@@ -91,7 +92,7 @@ async def async_setup_entry(
                             continue
                         _LOGGER.info(
                             "Adding %s number for device: %s",
-                            number_info["name"],
+                            number_info.name,
                             device.name,
                         )
                         entity = HisenseNumber(
@@ -145,7 +146,7 @@ class HisenseNumber(CoordinatorEntity, NumberEntity):
         coordinator: HisenseACPluginDataUpdateCoordinator,
         device: HisenseDeviceInfo,
         number_type: str,
-        number_info: dict,
+        number_info: NumberEntityConfig,
     ) -> None:
         """Initialize the number entity."""
         super().__init__(coordinator)
@@ -153,22 +154,22 @@ class HisenseNumber(CoordinatorEntity, NumberEntity):
         self._device_id: str = device.puid
         self._number_type = number_type
         self._number_info = number_info
-        self._number_key = number_info["key"]
+        self._number_key = number_info.key
         self._attr_unique_id = f"{device.device_id}_{number_type}"
-        self._attr_name = number_info["name"]
+        self._attr_name = number_info.name
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, device.device_id)},
             name=device.name,
             manufacturer="Hisense",
             model=f"{device.type_name} ({device.feature_name})",
         )
-        self._attr_icon = number_info["icon"]
-        self._attr_device_class = number_info.get("device_class")
-        self._attr_mode = number_info["mode"]
-        self._attr_native_unit_of_measurement = number_info.get("unit")
-        self._attr_native_min_value = float(number_info["min_value"])
-        self._attr_native_max_value = float(number_info["max_value"])
-        self._attr_native_step = float(number_info["step"])
+        self._attr_icon = number_info.icon
+        self._attr_device_class = number_info.device_class
+        self._attr_mode = number_info.mode
+        self._attr_native_unit_of_measurement = number_info.unit
+        self._attr_native_min_value = float(number_info.min_value)
+        self._attr_native_max_value = float(number_info.max_value)
+        self._attr_native_step = float(number_info.step)
         self._attr_entity_registry_enabled_default = True
 
         # 初始化时更新一次温度范围
@@ -187,7 +188,7 @@ class HisenseNumber(CoordinatorEntity, NumberEntity):
             current_lang, {}
         )
         translated_name = translations.get(
-            translation_key, self._number_info["name"]
+            translation_key, self._number_info.name
         )
         return translated_name
 

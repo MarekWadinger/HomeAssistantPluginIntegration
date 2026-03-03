@@ -18,40 +18,41 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send, callback
 
 from .const import DOMAIN, StatusKey
 from .coordinator import HisenseACPluginDataUpdateCoordinator
+from .entity_descriptions import SwitchEntityConfig
 from .models import DeviceInfo as HisenseDeviceInfo
 
 _LOGGER = logging.getLogger(__name__)
 
 # Define switch types
 SWITCH_TYPES = {
-    "quiet_mode": {
-        "key": StatusKey.QUIET,
-        "name": "Quiet Mode",
-        "icon_on": "mdi:volume-off",
-        "icon_off": "mdi:volume-high",
-        "description": "Toggle quiet mode",
-    },
-    "rapid_mode": {
-        "key": StatusKey.RAPID,
-        "name": "Rapid Mode",
-        "icon_on": "mdi:speedometer",
-        "icon_off": "mdi:speedometer-slow",
-        "description": "Toggle rapid (powerful) mode",
-    },
-    "8heat_mode": {
-        "key": StatusKey.EIGHTHEAT,
-        "name": "8heat Mode",
-        "icon_on": "mdi:fire",
-        "icon_off": "mdi:fire-off",
-        "description": "Toggle 8heat mode",
-    },
-    "eco_mode": {
-        "key": StatusKey.ECO,
-        "name": "Eco Mode",
-        "icon_on": "mdi:leaf",
-        "icon_off": "mdi:leaf-off",
-        "description": "Toggle eco mode",
-    },
+    "quiet_mode": SwitchEntityConfig(
+        key=StatusKey.QUIET,
+        name="Quiet Mode",
+        icon_on="mdi:volume-off",
+        icon_off="mdi:volume-high",
+        description="Toggle quiet mode",
+    ),
+    "rapid_mode": SwitchEntityConfig(
+        key=StatusKey.RAPID,
+        name="Rapid Mode",
+        icon_on="mdi:speedometer",
+        icon_off="mdi:speedometer-slow",
+        description="Toggle rapid (powerful) mode",
+    ),
+    "8heat_mode": SwitchEntityConfig(
+        key=StatusKey.EIGHTHEAT,
+        name="8heat Mode",
+        icon_on="mdi:fire",
+        icon_off="mdi:fire-off",
+        description="Toggle 8heat mode",
+    ),
+    "eco_mode": SwitchEntityConfig(
+        key=StatusKey.ECO,
+        name="Eco Mode",
+        icon_on="mdi:leaf",
+        icon_off="mdi:leaf-off",
+        description="Toggle eco mode",
+    ),
 }
 
 
@@ -87,10 +88,10 @@ async def async_setup_entry(
                     parser = coordinator.api_client.parsers.get(
                         device.device_id
                     )
-                    if device.has_attribute(switch_info["key"], parser):
+                    if device.has_attribute(switch_info.key, parser):
                         _LOGGER.info(
                             "Adding %s switch for device: %s",
-                            switch_info["name"],
+                            switch_info.name,
                             device.name,
                         )
                         static_data = coordinator.api_client.static_data.get(
@@ -110,7 +111,7 @@ async def async_setup_entry(
                             ):
                                 continue
                         else:
-                            if not device.status.get(switch_info["key"]):
+                            if not device.status.get(switch_info.key):
                                 continue
                         _LOGGER.info(
                             "当前设备: %s: %s",
@@ -202,14 +203,14 @@ async def async_setup_entry(
 
                                 # 创建开关实体
                                 switch_type = f"fan_speed_{label.lower().replace(' ', '_')}"
-                                switch_info = {
-                                    "key": fan_attr.key,
-                                    "name": f"{label} 风速",
-                                    "icon_on": "mdi:fan",
-                                    "icon_off": "mdi:fan-off",
-                                    "description": f"切换到 {label} 风速",
-                                    "expected_value": value_str,
-                                }
+                                switch_info = SwitchEntityConfig(
+                                    key=fan_attr.key,
+                                    name=f"{label} 风速",
+                                    icon_on="mdi:fan",
+                                    icon_off="mdi:fan-off",
+                                    description=f"切换到 {label} 风速",
+                                    expected_value=value_str,
+                                )
                                 entity = HisenseSwitch(
                                     coordinator,
                                     device,
@@ -227,14 +228,14 @@ async def async_setup_entry(
                                     label,
                                 )
                                 switch_type = f"fan_speed_{label.lower().replace(' ', '_')}"
-                                switch_info = {
-                                    "key": fan_attr.key,
-                                    "name": f"{label} 风速",
-                                    "icon_on": "mdi:fan",
-                                    "icon_off": "mdi:fan-off",
-                                    "description": f"切换到 {label} 风速",
-                                    "expected_value": value_str,
-                                }
+                                switch_info = SwitchEntityConfig(
+                                    key=fan_attr.key,
+                                    name=f"{label} 风速",
+                                    icon_on="mdi:fan",
+                                    icon_off="mdi:fan-off",
+                                    description=f"切换到 {label} 风速",
+                                    expected_value=value_str,
+                                )
                                 entity = HisenseSwitch(
                                     coordinator,
                                     device,
@@ -276,7 +277,7 @@ class HisenseSwitch(CoordinatorEntity, SwitchEntity):
         coordinator: HisenseACPluginDataUpdateCoordinator,
         device: HisenseDeviceInfo,
         switch_type: str,
-        switch_info: dict,
+        switch_info: SwitchEntityConfig,
         expected_value: str | None = None,  # 新增参数
     ) -> None:
         """Initialize the switch entity."""
@@ -288,9 +289,9 @@ class HisenseSwitch(CoordinatorEntity, SwitchEntity):
         self._switch_info = switch_info
         self._device_id: str = device.puid
         self._switch_type = switch_type
-        self._switch_key = switch_info["key"]
+        self._switch_key = switch_info.key
         self._attr_unique_id = f"{device.device_id}_{switch_type}"
-        self._attr_name = switch_info["name"]
+        self._attr_name = switch_info.name
         self._last_cloud_value = None  # 新增：存储最后一次云端推送的状态值
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, device.device_id)},
@@ -298,7 +299,7 @@ class HisenseSwitch(CoordinatorEntity, SwitchEntity):
             manufacturer="Hisense",
             model=f"{device.type_name} ({device.feature_name})",
         )
-        self._attr_icon = switch_info["icon_off"]
+        self._attr_icon = switch_info.icon_off
         self._attr_entity_registry_enabled_default = True
         self._expected_value = expected_value  # 新增属性
 
@@ -335,7 +336,7 @@ class HisenseSwitch(CoordinatorEntity, SwitchEntity):
             current_lang, {}
         )
         translated_name = translations.get(
-            translation_key, self._switch_info["name"]
+            translation_key, self._switch_info.name
         )
         return translated_name
 
@@ -444,22 +445,12 @@ class HisenseSwitch(CoordinatorEntity, SwitchEntity):
 
     @property
     def icon(self) -> str:
-        """Correctly handle fan speed switch icons"""
-        if self._switch_type.startswith("fan_speed_"):
-            # Use the icon from switch_info passed during initialization
-            return (
-                self._switch_info["icon_on"]
-                if self.is_on
-                else self._switch_info["icon_off"]
-            )
-        else:
-            # Use predefined icons for other switches
-            switch_info = SWITCH_TYPES.get(self._switch_type, {})
-            return (
-                switch_info.get("icon_on", "mdi:fan")
-                if self.is_on
-                else switch_info.get("icon_off", "mdi:fan-off")
-            )
+        """Return the icon based on switch state."""
+        return (
+            self._switch_info.icon_on
+            if self.is_on
+            else self._switch_info.icon_off
+        )
 
     # 修改 switch.py 中的 HisenseSwitch 类的 async_turn_on 方法：
 
@@ -486,7 +477,7 @@ class HisenseSwitch(CoordinatorEntity, SwitchEntity):
             # 强制更新本地缓存状态（不等待Coordinator的更新）
             if self._switch_type.startswith("fan_speed_"):
                 # 风速开关需要根据value设置对应的属性
-                fan_speed_key = self._switch_info["key"]
+                fan_speed_key = self._switch_info.key
                 self._device.status[fan_speed_key] = value
             else:
                 self._device.status[self._switch_key] = value
