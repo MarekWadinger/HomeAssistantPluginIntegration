@@ -301,34 +301,9 @@ class HisenseACPluginDataUpdateCoordinator(
                             )
 
                     # Update device in coordinator
-                    updated_device = DeviceInfo(device_data)
+                    updated_device = DeviceInfo.model_validate(device_data)
                     self._devices[device_key] = updated_device
                     self.data = self._devices
-
-                    # Get device type and parse status using appropriate parser
-                    device_type = updated_device.get_device_type()
-                    if device_type:
-                        try:
-                            from .devices import get_device_parser
-
-                            _parser = get_device_parser(
-                                device_type.type_code, device_type.feature_code
-                            )
-                            _LOGGER.debug(
-                                "Using parser for device type %s-%s",
-                                device_type.type_code,
-                                device_type.feature_code,
-                            )
-
-                            # No need to parse status here, it will be parsed when accessed by climate entity
-                            _LOGGER.debug(
-                                "Device status updated: %s",
-                                updated_device.status,
-                            )
-                        except Exception as err:
-                            _LOGGER.error(
-                                "Failed to get device parser: %s", err
-                            )
 
                     # Notify listeners of the update
                     self.hass.loop.call_soon_threadsafe(

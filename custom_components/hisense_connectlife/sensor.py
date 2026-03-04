@@ -11,7 +11,10 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
+    UnitOfElectricCurrent,
+    UnitOfElectricPotential,
     UnitOfEnergy,
+    UnitOfPower,
     UnitOfTemperature,
 )
 from homeassistant.core import HomeAssistant
@@ -49,6 +52,33 @@ SENSOR_TYPES: dict[str, SensorEntityConfig] = {
         state_class=SensorStateClass.TOTAL_INCREASING,
         unit=UnitOfEnergy.KILO_WATT_HOUR,
         description="Accumulated power consumption",
+    ),
+    "electricity": SensorEntityConfig(
+        key=StatusKey.ENERGY,
+        name="Electric Current",
+        icon="mdi:current-ac",
+        device_class=SensorDeviceClass.CURRENT,
+        state_class=SensorStateClass.MEASUREMENT,
+        unit=UnitOfElectricCurrent.AMPERE,
+        description="Current electric current",
+    ),
+    "voltage": SensorEntityConfig(
+        key=StatusKey.VOLTAGE,
+        name="Voltage",
+        icon="mdi:sine-wave",
+        device_class=SensorDeviceClass.VOLTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        unit=UnitOfElectricPotential.VOLT,
+        description="Current voltage",
+    ),
+    "power_display": SensorEntityConfig(
+        key=StatusKey.POWER_DISPLAY,
+        name="Power",
+        icon="mdi:flash",
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        unit=UnitOfPower.WATT,
+        description="Current power consumption",
     ),
     "indoor_humidity": SensorEntityConfig(
         key=StatusKey.FHUMIDITY,
@@ -298,22 +328,6 @@ async def async_setup_entry(
 
                         # 获取当前值
                         current_value = device.status.get(sensor_info.key)
-                        static_data = coordinator.api_client.static_data.get(
-                            device.device_id
-                        )
-                        _LOGGER.info(
-                            "获取到静态数据: %s: %s",
-                            device.feature_code,
-                            static_data,
-                        )
-                        if static_data is not None:
-                            hasHumidity = static_data.get("f_humidity")
-                            if (
-                                sensor_info.key == StatusKey.FHUMIDITY
-                                and hasHumidity == "0"
-                            ):
-                                continue
-
                         # 故障传感器特殊处理：值为0或None时跳过
                         if is_fault_sensor:
                             if current_value is None or current_value == "0":
@@ -468,13 +482,16 @@ class HisenseSensor(CoordinatorEntity, SensorEntity):
             return None
 
         try:
-            # Convert to float for numeric sensors
-            if self._attr_device_class in [
-                SensorDeviceClass.TEMPERATURE,
-                SensorDeviceClass.ENERGY,
-            ]:
-                return float(value)
-            return value
+            if self._attr_device_class == SensorDeviceClass.ENUM:
+                return value
+            numeric = float(value)
+            # f_electricity is reported in mA, convert to A
+            if self._sensor_key == StatusKey.ENERGY:
+                numeric /= 1000.0
+            # f_humidity: API returns 128 (0x80) as "not available"
+            if self._sensor_key == StatusKey.FHUMIDITY and numeric == 128:
+                return None
+            return numeric
         except (ValueError, TypeError):
             _LOGGER.warning(
                 "Could not convert %s value '%s' to float",

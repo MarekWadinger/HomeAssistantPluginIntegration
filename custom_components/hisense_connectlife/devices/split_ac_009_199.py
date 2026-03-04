@@ -1,127 +1,327 @@
-"""Parser for Split AC (009-199) device type."""
+"""Schema for Split AC (009-199) device type."""
 
-from typing import Dict
+from .base import DeviceAttribute, DeviceSchema
 
-from .base import BaseDeviceParser, DeviceAttribute
-
-
-class SplitAC009199Parser(BaseDeviceParser):
-    """Parser for Split AC 009-199 device type."""
-
-    @property
-    def device_type(self) -> str:
-        return "009"
-
-    @property
-    def feature_code(self) -> str:
-        return "199"
-
-    @property
-    def attributes(self) -> Dict[str, DeviceAttribute]:
-        return {
-            "t_work_mode": DeviceAttribute(
-                key="t_work_mode",
-                name="设定模式",
-                attr_type="Enum",
-                step=1,
-                value_range="0,1,2,3,4",
-                value_map={
-                    "0": "送风",
-                    "1": "制热",
-                    "2": "制冷",
-                    "3": "除湿",
-                    "4": "自动",
-                },
-                read_write="RW",
-            ),
-            "t_power": DeviceAttribute(
-                key="t_power",
-                name="开关机",
+SPLIT_AC_009_199 = DeviceSchema(
+    device_type="009",
+    feature_code="199",
+    attributes={
+        # ── Core controls ──────────────────────────────────────────────
+        "t_power": DeviceAttribute(
+            key="t_power",
+            name="开关机",
+            attr_type="Enum",
+            step=1,
+            value_range="0,1",
+            value_map={"0": "关", "1": "开"},
+            read_write="RW",
+        ),
+        "t_work_mode": DeviceAttribute(
+            key="t_work_mode",
+            name="设定模式",
+            attr_type="Enum",
+            step=1,
+            value_range="0,1,2,3,4",
+            value_map={
+                "0": "送风",
+                "1": "制热",
+                "2": "制冷",
+                "3": "除湿",
+                "4": "自动",
+            },
+            read_write="RW",
+        ),
+        "t_temp": DeviceAttribute(
+            key="t_temp",
+            name="设置温度",
+            attr_type="Number",
+            step=1,
+            value_range="16~32,61~90",
+            read_write="RW",
+        ),
+        "t_temp_type": DeviceAttribute(
+            key="t_temp_type",
+            name="温度单位切换",
+            attr_type="Enum",
+            step=1,
+            value_range="0,1",
+            value_map={"0": "摄氏", "1": "华氏"},
+            read_write="RW",
+        ),
+        # ── Fan ────────────────────────────────────────────────────────
+        "t_fan_speed": DeviceAttribute(
+            key="t_fan_speed",
+            name="设定风速",
+            attr_type="Enum",
+            step=1,
+            value_range="0,5,6,7,8,9",
+            value_map={
+                "0": "自动",
+                "5": "超低",
+                "6": "低",
+                "7": "中",
+                "8": "高",
+                "9": "超高",
+            },
+            read_write="RW",
+        ),
+        "t_fan_speed_s": DeviceAttribute(
+            key="t_fan_speed_s",
+            name="语音控制专用风速",
+            attr_type="Enum",
+            step=1,
+            value_range="0,5,6,7,8,9",
+            value_map={
+                "0": "自动",
+                "5": "超低",
+                "6": "低",
+                "7": "中",
+                "8": "高",
+                "9": "超高",
+            },
+            read_write="RW",
+        ),
+        "t_fanspeedCV": DeviceAttribute(
+            key="t_fanspeedCV",
+            name="设定无极调速",
+            attr_type="Number",
+            step=1,
+            value_range="0~100",
+            read_write="RW",
+        ),
+        "t_fan_mute": DeviceAttribute(
+            key="t_fan_mute",
+            name="设定静音",
+            attr_type="Enum",
+            step=1,
+            value_range="0,1",
+            value_map={"0": "停", "1": "开"},
+            read_write="RW",
+        ),
+        # ── Swing / airflow ────────────────────────────────────────────
+        "t_up_down": DeviceAttribute(
+            key="t_up_down",
+            name="上下风",
+            attr_type="Enum",
+            step=1,
+            value_range="0,1",
+            value_map={"0": "取消", "1": "开启"},
+            read_write="RW",
+        ),
+        "t_left_right": DeviceAttribute(
+            key="t_left_right",
+            name="左右风",
+            attr_type="Enum",
+            step=1,
+            value_range="0,1",
+            value_map={"0": "取消", "1": "开启"},
+            read_write="RW",
+        ),
+        "t_swing_angle": DeviceAttribute(
+            key="t_swing_angle",
+            name="设定上下风摆角度",
+            attr_type="Enum",
+            step=1,
+            value_range="0,1,2,3,4,5,6,7",
+            read_write="RW",
+        ),
+        "t_swing_direction": DeviceAttribute(
+            key="t_swing_direction",
+            name="设定八字送风",
+            attr_type="Enum",
+            step=1,
+            value_range="0,1,2,3,4,5",
+            read_write="RW",
+        ),
+        "t_swing_follow": DeviceAttribute(
+            key="t_swing_follow",
+            name="设定风向跟随",
+            attr_type="Enum",
+            step=1,
+            value_range="0,1,2",
+            read_write="RW",
+        ),
+        "t_fresh_air": DeviceAttribute(
+            key="t_fresh_air",
+            name="新风功能",
+            attr_type="Enum",
+            step=1,
+            value_range="0,1",
+            value_map={"0": "关闭", "1": "开启"},
+            read_write="RW",
+        ),
+        # ── Modes ──────────────────────────────────────────────────────
+        "t_super": DeviceAttribute(
+            key="t_super",
+            name="强力",
+            attr_type="Enum",
+            step=1,
+            value_range="0,1",
+            value_map={"0": "取消", "1": "开启"},
+            read_write="RW",
+        ),
+        "t_eco": DeviceAttribute(
+            key="t_eco",
+            name="设定节能",
+            attr_type="Enum",
+            step=1,
+            value_range="0,1",
+            value_map={"0": "关闭", "1": "开启"},
+            read_write="RW",
+        ),
+        "t_8heat": DeviceAttribute(
+            key="t_8heat",
+            name="8°制热",
+            attr_type="Enum",
+            step=1,
+            value_range="0,1",
+            value_map={"0": "关闭", "1": "开启"},
+            read_write="RW",
+        ),
+        "t_sleep": DeviceAttribute(
+            key="t_sleep",
+            name="设定睡眠",
+            attr_type="Enum",
+            step=1,
+            value_range="0,1,2,3,4",
+            read_write="RW",
+        ),
+        "t_purify": DeviceAttribute(
+            key="t_purify",
+            name="净化功能",
+            attr_type="Enum",
+            step=1,
+            value_range="0,1",
+            value_map={"0": "关闭", "1": "开启"},
+            read_write="RW",
+        ),
+        "t_tms": DeviceAttribute(
+            key="t_tms",
+            name="设定AI功能",
+            attr_type="Enum",
+            step=1,
+            value_range="0,1",
+            value_map={"0": "关闭", "1": "开启"},
+            read_write="RW",
+        ),
+        # ── Device settings ───────────────────────────────────────────
+        "t_beep": DeviceAttribute(
+            key="t_beep",
+            name="蜂鸣器开关",
+            attr_type="Enum",
+            step=1,
+            value_range="0,1",
+            value_map={"0": "关闭", "1": "开启"},
+            read_write="RW",
+        ),
+        "t_dimmer": DeviceAttribute(
+            key="t_dimmer",
+            name="背景灯控制",
+            attr_type="Enum",
+            step=1,
+            value_range="0,1",
+            value_map={"0": "关闭", "1": "开启"},
+            read_write="RW",
+        ),
+        "t_temp_compensate": DeviceAttribute(
+            key="t_temp_compensate",
+            name="设定AI功能下温度补偿值",
+            attr_type="Enum",
+            step=1,
+            value_range="0,1,2,3,4,5,6,7,9,10,11,12,13,14,15",
+            read_write="RW",
+        ),
+        "t_device_info": DeviceAttribute(
+            key="t_device_info",
+            name="手动刷新数据",
+            attr_type="Enum",
+            step=1,
+            value_range="0,1",
+            read_write="RW",
+        ),
+        # ── Sensors (read-only) ───────────────────────────────────────
+        "f_temp_in": DeviceAttribute(
+            key="f_temp_in",
+            name="室内温度",
+            attr_type="Number",
+            read_write="R",
+        ),
+        "f_humidity": DeviceAttribute(
+            key="f_humidity",
+            name="实际湿度",
+            attr_type="Number",
+            step=1,
+            value_range="30~90",
+            read_write="R",
+        ),
+        "f_power_consumption": DeviceAttribute(
+            key="f_power_consumption",
+            name="电量累积消耗值",
+            attr_type="Number",
+            read_write="R",
+        ),
+        "f_electricity": DeviceAttribute(
+            key="f_electricity",
+            name="电流值",
+            attr_type="Number",
+            read_write="R",
+        ),
+        "f_votage": DeviceAttribute(
+            key="f_votage",
+            name="电压值",
+            attr_type="Number",
+            read_write="R",
+        ),
+        "f_power_display": DeviceAttribute(
+            key="f_power_display",
+            name="电功率值",
+            attr_type="Number",
+            read_write="R",
+        ),
+        "f_cool_qvalue": DeviceAttribute(
+            key="f_cool_qvalue",
+            name="制冷模式Q值",
+            attr_type="Number",
+            read_write="R",
+        ),
+        "f_heat_qvalue": DeviceAttribute(
+            key="f_heat_qvalue",
+            name="制热模式Q值",
+            attr_type="Number",
+            read_write="R",
+        ),
+        "f_ecm": DeviceAttribute(
+            key="f_ecm",
+            name="电量计算方法",
+            attr_type="Enum",
+            step=1,
+            value_range="0,1",
+            read_write="R",
+        ),
+        # ── Zone controls (multi-zone ducted systems) ─────────────────
+        **{
+            f"aus_zone{i}_power": DeviceAttribute(
+                key=f"aus_zone{i}_power",
+                name=f"区域{i}开关",
                 attr_type="Enum",
                 step=1,
                 value_range="0,1",
                 value_map={"0": "关", "1": "开"},
                 read_write="RW",
-            ),
-            "t_temp": DeviceAttribute(
-                key="t_temp",
-                name="设置温度",
-                attr_type="Number",
-                step=1,
-                value_range="16~32,61~90",
-                read_write="RW",
-            ),
-            "t_fan_speed": DeviceAttribute(
-                key="t_fan_speed",
-                name="设定风速",
-                attr_type="Enum",
-                step=1,
-                value_range="0,5,6,7,8,9",
-                value_map={
-                    "0": "自动",
-                    "5": "超低",
-                    "6": "低",
-                    "7": "中",
-                    "8": "高",
-                    "9": "超高",
-                },
-                read_write="RW",
-            ),
-            "t_up_down": DeviceAttribute(
-                key="t_up_down",
-                name="上下风",
-                attr_type="Enum",
-                step=1,
-                value_range="0,1",
-                value_map={"0": "取消", "1": "开启"},
-                read_write="RW",
-            ),
-            "t_left_right": DeviceAttribute(
-                key="t_left_right",
-                name="左右风",
-                attr_type="Enum",
-                step=1,
-                value_range="0,1",
-                value_map={"0": "取消", "1": "开启"},
-                read_write="RW",
-            ),
-            "t_power_consumption": DeviceAttribute(
-                key="t_power_consumption",
-                name="电量累积消耗值",
-                attr_type="Number",
-                read_write="R",
-            ),
-            "t_fan_mute": DeviceAttribute(
-                key="t_fan_mute",
-                name="设定静音",
-                attr_type="Enum",
-                step=1,
-                value_range="0,1",
-                value_map={"0": "停", "1": "开"},
-                read_write="RW",
-            ),
-            "t_super": DeviceAttribute(
-                key="t_super",
-                name="强力",
-                attr_type="Enum",
-                step=1,
-                value_range="0,1",
-                value_map={"0": "取消", "1": "开启"},
-                read_write="RW",
-            ),
-            "t_temp_in": DeviceAttribute(
-                key="t_temp_in",
-                name="室内温度",
-                attr_type="Number",
-                read_write="R",
-            ),
-            "t_8heat": DeviceAttribute(
-                key="t_8heat",
-                name="8°制热",
+            )
+            for i in range(1, 9)
+        },
+        **{
+            f"aus_zone{i}_opencontrol": DeviceAttribute(
+                key=f"aus_zone{i}_opencontrol",
+                name=f"区域{i}开度",
                 attr_type="Enum",
                 step=1,
                 value_range="0,1",
                 value_map={"0": "关闭", "1": "开启"},
                 read_write="RW",
-            ),
-        }
+            )
+            for i in range(1, 9)
+        },
+    },
+)

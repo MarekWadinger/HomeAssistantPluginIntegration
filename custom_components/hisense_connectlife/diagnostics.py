@@ -148,11 +148,9 @@ async def async_get_device_diagnostics(
         "type_code": device.type_code,
         "feature_code": device.feature_code,
         "feature_name": device.feature_name,
-        "online": not getattr(device, "offlineState", False),
-        "status": device.status if hasattr(device, "status") else {},
-        "failed_data": device.failed_data
-        if hasattr(device, "failed_data")
-        else [],
+        "online": device.is_online,
+        "status": device.status,
+        "failed_data": device.failed_data,
         "static_data": device.static_data
         if hasattr(device, "static_data")
         else {},

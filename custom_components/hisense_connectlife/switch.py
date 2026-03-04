@@ -53,6 +53,61 @@ SWITCH_TYPES = {
         icon_off="mdi:leaf-off",
         description="Toggle eco mode",
     ),
+    "beep": SwitchEntityConfig(
+        key=StatusKey.BEEP,
+        name="Beep",
+        icon_on="mdi:volume-high",
+        icon_off="mdi:volume-off",
+        description="Toggle buzzer sound",
+    ),
+    "dimmer": SwitchEntityConfig(
+        key=StatusKey.DIMMER,
+        name="Display Light",
+        icon_on="mdi:brightness-7",
+        icon_off="mdi:brightness-3",
+        description="Toggle display backlight",
+    ),
+    "purify": SwitchEntityConfig(
+        key=StatusKey.PURIFY,
+        name="Purify",
+        icon_on="mdi:air-purifier",
+        icon_off="mdi:air-purifier-off",
+        description="Toggle air purification",
+    ),
+    "fresh_air": SwitchEntityConfig(
+        key=StatusKey.FRESH_AIR,
+        name="Fresh Air",
+        icon_on="mdi:weather-windy",
+        icon_off="mdi:weather-windy-variant",
+        description="Toggle fresh air intake",
+    ),
+    "tms": SwitchEntityConfig(
+        key=StatusKey.TMS,
+        name="AI Mode",
+        icon_on="mdi:head-snowflake",
+        icon_off="mdi:head-snowflake-outline",
+        description="Toggle AI comfort mode",
+    ),
+    **{
+        f"zone{i}_power": SwitchEntityConfig(
+            key=f"aus_zone{i}_power",
+            name=f"Zone {i}",
+            icon_on="mdi:thermostat",
+            icon_off="mdi:thermostat-auto",
+            description=f"Toggle zone {i} power",
+        )
+        for i in range(1, 9)
+    },
+    **{
+        f"zone{i}_opencontrol": SwitchEntityConfig(
+            key=f"aus_zone{i}_opencontrol",
+            name=f"Zone {i} Damper",
+            icon_on="mdi:valve-open",
+            icon_off="mdi:valve-closed",
+            description=f"Toggle zone {i} damper",
+        )
+        for i in range(1, 9)
+    },
 }
 
 
@@ -89,6 +144,13 @@ async def async_setup_entry(
                         device.device_id
                     )
                     if device.has_attribute(switch_info.key, parser):
+                        # Zone controls: only create for ducted units
+                        # that report aus_zone* in their live status
+                        if (
+                            switch_info.key.startswith("aus_zone")
+                            and switch_info.key not in device.status
+                        ):
+                            continue
                         _LOGGER.info(
                             "Adding %s switch for device: %s",
                             switch_info.name,
@@ -349,12 +411,12 @@ class HisenseSwitch(CoordinatorEntity, SwitchEntity):
     def available(self) -> bool:
         """Return if entity is available."""
         _LOGGER.info(
-            "设备 %s 是否可用: %s", self.feature_code, self._device.is_onOff
+            "设备 %s 是否可用: %s", self.feature_code, self._device.is_on
         )  # 调用方法并获取返回值
         if (
             not self._device
             or not self._device.is_online
-            or not self._device.is_onOff
+            or not self._device.is_on
         ):
             return False
 

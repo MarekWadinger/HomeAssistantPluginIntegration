@@ -3,15 +3,20 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
-from typing import Any, List, Protocol
+from typing import Any, Protocol
 
 from homeassistant.exceptions import HomeAssistantError
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .const import DeviceType
-from .devices import BaseDeviceParser
+from .devices import DeviceSchema
 
 _LOGGER = logging.getLogger(__name__)
+
+_SUPPORTED_TYPES = {"009", "008", "007", "006", "016", "035"}
+_CLIMATE_TYPES = {"009", "008", "006"}
+_WATER_TYPES = {"016"}
+_HUMIDITY_TYPES = {"007"}
 
 
 class ApiClientProtocol(Protocol):
@@ -34,115 +39,101 @@ class ApiClientProtocol(Protocol):
         ...
 
 
-@dataclass
-class PushChannel:
+class PushChannel(BaseModel):
     """Push channel information."""
 
-    push_channel: str
+    model_config = ConfigDict(populate_by_name=True)
 
-    @classmethod
-    def from_json(cls, json_data: dict) -> "PushChannel":
-        """Create from JSON."""
-        return cls(push_channel=json_data.get("pushChannel", ""))
+    push_channel: str = Field(default="", alias="pushChannel")
 
 
-@dataclass
-class NotificationInfo:
+class NotificationInfo(BaseModel):
     """Notification server information."""
 
-    push_channels: List[PushChannel]
-    push_server_ip: str
-    push_server_port: str
-    push_server_ssl_port: str
-    hb_interval: int
-    hb_fail_times: int
-    has_msg_unread: int
-    unread_msg_num: int
+    model_config = ConfigDict(populate_by_name=True)
 
+    push_channels: list[PushChannel] = Field(
+        default_factory=list, alias="pushChannels"
+    )
+    push_server_ip: str = Field(default="", alias="pushServerIp")
+    push_server_port: str = Field(default="", alias="pushServerPort")
+    push_server_ssl_port: str = Field(default="", alias="pushServerSslPort")
+    hb_interval: int = Field(default=30, alias="hbInterval")
+    hb_fail_times: int = Field(default=3, alias="hbFailTimes")
+    has_msg_unread: int = Field(default=0, alias="hasMsgUnread")
+    unread_msg_num: int = Field(default=0, alias="unreadMsgNum")
+
+
+class DeviceInfo(BaseModel):
+    """Device information from the ConnectLife API."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    # Core identity
+    device_id: str = Field(default="", alias="deviceId")
+    puid: str = Field(default="")
+    name: str = Field(default="", alias="deviceNickName")
+    type_code: str = Field(default="", alias="deviceTypeCode")
+    type_name: str = Field(default="", alias="deviceTypeName")
+    feature_code: str = Field(default="", alias="deviceFeatureCode")
+    feature_name: str = Field(default="", alias="deviceFeatureName")
+
+    # Optional metadata (use Any for fields that may arrive as "" from API)
+    wifi_id: str | None = Field(default=None, alias="wifiId")
+    bind_time: Any = Field(default=None, alias="bindTime")
+    role: Any = Field(default=None)
+    room_id: Any = Field(default=None, alias="roomId")
+    room_name: str | None = Field(default=None, alias="roomName")
+
+    # Status
+    status: dict[str, Any] = Field(default_factory=dict, alias="statusList")
+    offline_state: int | None = Field(default=None, alias="offlineState")
+
+    # Other
+    use_time: Any = Field(default=None, alias="useTime")
+    seq: Any = Field(default=None)
+    create_time: Any = Field(default=None, alias="createTime")
+
+    # Mutable non-API fields
+    failed_data: list[str] = Field(default_factory=list, exclude=True)
+
+    @field_validator("offline_state", mode="before")
     @classmethod
-    def from_json(cls, json_data: dict) -> "NotificationInfo":
-        """Create from JSON."""
-        return cls(
-            push_channels=[
-                PushChannel.from_json(c)
-                for c in json_data.get("pushChannels", [])
-            ],
-            push_server_ip=json_data.get("pushServerIp", ""),
-            push_server_port=json_data.get("pushServerPort", ""),
-            push_server_ssl_port=json_data.get("pushServerSslPort", ""),
-            hb_interval=json_data.get("hbInterval", 30),
-            hb_fail_times=json_data.get("hbFailTimes", 3),
-            has_msg_unread=json_data.get("hasMsgUnread", 0),
-            unread_msg_num=json_data.get("unreadMsgNum", 0),
-        )
+    def _coerce_offline_state(cls, v: Any) -> int | None:
+        if v is None or v == "":
+            return None
+        try:
+            return int(v)
+        except (ValueError, TypeError):
+            return None
 
-
-class DeviceInfo:
-    """Device information class."""
-
-    def __init__(self, data: dict[str, Any]) -> None:
-        """Initialize device info."""
-        if not isinstance(data, dict):
-            _LOGGER.warning(
-                "DeviceInfo initialized with non-dict data: %s", data
-            )
-            data = {}
-
-        # Core device identity (always present in API responses)
-        self.device_id: str = data.get("deviceId", "")
-        self.puid: str = data.get("puid", "")
-        self.name: str = data.get("deviceNickName", "")
-        self.type_code: str = data.get("deviceTypeCode", "")
-        self.type_name: str = data.get("deviceTypeName", "")
-        self.feature_code: str = data.get("deviceFeatureCode", "")
-        self.feature_name: str = data.get("deviceFeatureName", "")
-        # Optional metadata
-        self.wifi_id: str | None = data.get("wifiId")
-        self.bind_time: str | None = data.get("bindTime")
-        self.role: str | None = data.get("role")
-        self.room_id: str | None = data.get("roomId")
-        self.room_name: str | None = data.get("roomName")
-        self._failed_data = []
-        # Status information
-        status_list = data.get("statusList", {})
-        if isinstance(status_list, dict):
-            self.status = status_list
-        else:
-            _LOGGER.warning("Invalid status data: %s", status_list)
-            self.status = {}
-
-        # Other information
-        self.use_time = data.get("useTime")
-        self.offline_state = data.get("offlineState")
-        self.onOff = self.status.get("t_power")
-        self.seq = data.get("seq")
-        self.create_time = data.get("createTime")
-        self._is_online = self.offline_state == 1
-        self._is_onOff = self.onOff == 1 or self.onOff == "1"
-
-        _LOGGER.debug(
-            "Device %s (type: %s-%s) onOff: %s, _is_onOff: %s",
-            self.feature_code,
-            self.type_code,
-            self.feature_code,
-            self.onOff,
-            self._is_onOff,
-        )
+    @field_validator("status", mode="before")
+    @classmethod
+    def _coerce_status(cls, v: Any) -> dict[str, Any]:
+        if isinstance(v, dict):
+            return v
+        _LOGGER.warning("Invalid status data: %s", v)
+        return {}
 
     @property
     def is_online(self) -> bool:
-        """Return if device is online."""
-        return self._is_online
+        """Device is considered online if it has status data.
+
+        The API's offlineState field is unreliable — devices actively
+        reporting sensor data (f_temp_in, f_votage, etc.) still return
+        offlineState=1.  Fall back to checking whether we have any
+        status payload at all.
+        """
+        return bool(self.status)
 
     @property
-    def failed_data(self) -> List[str]:
-        """Property to access failed_data safely."""
-        return self._failed_data
+    def is_on(self) -> bool:
+        """Device power is on (t_power == '1')."""
+        power = self.status.get("t_power")
+        return power == 1 or power == "1"
 
-    @property
-    def is_onOff(self) -> bool:
-        """Return if device is online."""
-        return self._is_onOff
+    # Keep backward compat alias
+    is_onOff = is_on
 
     def get_device_type(self) -> DeviceType | None:
         """Get device type information."""
@@ -153,107 +144,55 @@ class DeviceInfo:
                 self.feature_code,
             )
             return None
-
-        device_type = DeviceType(
+        return DeviceType(
             type_code=self.type_code,
             feature_code=self.feature_code,
             description=self.name,
         )
-        _LOGGER.debug("Created device type: %s", device_type)
-        if not device_type:
-            _LOGGER.warning(
-                "Unsupported device type: %s-%s",
-                self.type_code,
-                self.feature_code,
-            )
-        return device_type
 
     def is_supported(self) -> bool:
-        """Check if this device type is supported."""
-        supported_device_types = ["009", "008", "006"]
-        return self.type_code in supported_device_types
+        """Check if this device type is a supported climate device."""
+        return self.type_code in _CLIMATE_TYPES
 
     def is_devices(self) -> bool:
-        """Check if this device type is supported."""
-        # 009 分体空调 008 窗机 007 除湿机 006 移动空调
-        supported_device_types = ["009", "008", "007", "006", "016", "035"]
-        return self.type_code in supported_device_types
+        """Check if this device type is any supported type."""
+        return self.type_code in _SUPPORTED_TYPES
 
     def is_water(self) -> bool:
-        """Check if this device type is supported."""
-        supported_device_types = ["016"]
-        return self.type_code in supported_device_types
+        """Check if this is a water heater device."""
+        return self.type_code in _WATER_TYPES
 
     def is_humidityr(self) -> bool:
-        """Check if this device type is supported."""
-        supported_device_types = ["007"]
-        return self.type_code in supported_device_types
+        """Check if this is a dehumidifier device."""
+        return self.type_code in _HUMIDITY_TYPES
 
     def get_status_value(self, key: str, default: Any = None) -> Any:
-        """Get value from status list."""
+        """Get value from status dict."""
         return self.status.get(key, default)
 
-    def has_attribute(self, key: str, parser: BaseDeviceParser) -> bool:
+    def has_attribute(self, key: str, parser: DeviceSchema) -> bool:
         """Check if device has a specific attribute."""
-        # First check if the attribute exists in status
-        # Check if the attribute is defined in the parser
-        # 先使用静态数据判断
-        attributes = parser.attributes
-        if attributes:
-            _LOGGER.debug("Checking if device has status: %s", attributes)
-            return key in attributes
-        else:
-            if key in self.status:
-                return True
-
-            # If not in status, check if we can get a parser for this device
-            device_type = self.get_device_type()
-            if not device_type:
-                return False
-
-            if not parser:
-                return False
-
-            return False
+        if parser and parser.attributes:
+            return key in parser.attributes
+        return key in self.status
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert device info to dictionary."""
-        # Return the data in the same format as the API response
-        return {
-            "wifiId": self.wifi_id,
-            "deviceId": self.device_id,
-            "puid": self.puid,
-            "deviceNickName": self.name,
-            "deviceFeatureCode": self.feature_code,
-            "deviceFeatureName": self.feature_name,
-            "deviceTypeCode": self.type_code,
-            "deviceTypeName": self.type_name,
-            "bindTime": self.bind_time,
-            "role": self.role,
-            "roomId": self.room_id,
-            "roomName": self.room_name,
-            "statusList": self.status,
-            "useTime": self.use_time,
-            "offlineState": self.offline_state,
-            "seq": self.seq,
-            "createTime": self.create_time,
-        }
+        """Serialize to API-compatible dict (camelCase keys)."""
+        return self.model_dump(by_alias=True, exclude={"failed_data"})
 
     def debug_info(self) -> str:
         """Return detailed debug information about the device."""
-        info = [
-            f"Device: {self.name} ({self.device_id})",
-            f"PUID: {self.puid}",
-            f"Type: {self.type_code}-{self.feature_code} ({self.type_name} - {self.feature_name})",
-            f"Online: {self.is_online} (offline_state: {self.offline_state})",
-            f"Status: {self.status}",
-            f"Supported: {self.is_supported()}",
-        ]
-        return "\n".join(info)
-
-    @failed_data.setter
-    def failed_data(self, value):
-        self._failed_data = value
+        return "\n".join(
+            [
+                f"Device: {self.name} ({self.device_id})",
+                f"PUID: {self.puid}",
+                f"Type: {self.type_code}-{self.feature_code}"
+                f" ({self.type_name} - {self.feature_name})",
+                f"Online: {self.is_online} (offline_state: {self.offline_state})",
+                f"Status: {self.status}",
+                f"Supported: {self.is_supported()}",
+            ]
+        )
 
 
 class HisenseApiError(HomeAssistantError):

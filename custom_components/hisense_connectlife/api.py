@@ -29,14 +29,7 @@ from .const import (
     CLIENT_SECRET,
     DOMAIN,
 )
-from .devices import (
-    BaseBeanParser,
-    BaseDeviceParser,
-    Humidity007Parser,
-    Split006299Parser,
-    SplitWater035699Parser,
-    get_device_parser,
-)
+from .devices import DeviceSchema, get_device_schema
 from .devices.base import DeviceAttribute
 from .models import DeviceInfo, HisenseApiError
 from .oauth2 import OAuth2Session
@@ -59,7 +52,7 @@ class HisenseApiClient:
         self.oauth_session = oauth_session
         self.session = oauth_session.session
         self._devices: dict[str, DeviceInfo] = {}
-        self.parsers: dict[str, BaseDeviceParser] = {}
+        self.parsers: dict[str, DeviceSchema] = {}
         self.static_data: dict[str, Any] = {}
         self._status_callbacks: dict[
             str, Callable[[dict[str, Any]], None]
@@ -178,6 +171,8 @@ class HisenseApiClient:
                         "fan_speed_ultra_high": "中高",
                         "fan_speed_low": "低",
                         "fan_speed_high": "高",
+                        "t_fanspeedCV": "无极调速",
+                        "t_temp_compensate": "AI温度补偿",
                     }
                 else:
                     hass.data[f"{DOMAIN}.translations"][lang] = {
@@ -279,6 +274,8 @@ class HisenseApiClient:
                         "fan_speed_ultra_high": "Ultra High",
                         "fan_speed_low": "Low",
                         "fan_speed_high": "High",
+                        "t_fanspeedCV": "Fan Speed (Stepless)",
+                        "t_temp_compensate": "AI Temp Offset",
                     }
                 _LOGGER.debug("Loaded translations for %s: %s", lang)
             except Exception as e:
@@ -520,7 +517,7 @@ class HisenseApiClient:
                 deviceTypeCode = device_data.get("deviceTypeCode")
                 deviceFeatureCode = device_data.get("deviceFeatureCode")
                 try:
-                    device = DeviceInfo(device_data)
+                    device = DeviceInfo.model_validate(device_data)
                     if not device.device_id or not device.puid:
                         _LOGGER.warning(
                             "Device missing device_id or puid, skipping: %s",
@@ -572,194 +569,54 @@ class HisenseApiClient:
                             propertyList,
                         )
 
-                        # 使用 get_device_parser 获取 parser 类
-                        parser_class = get_device_parser(
+                        # Get a fresh schema copy for this device
+                        schema = get_device_schema(
                             deviceTypeCode, deviceFeatureCode
                         )
-                        _LOGGER.debug(
-                            "Static data for parser class %s: %s: %s",
-                            deviceTypeCode,
-                            deviceFeatureCode,
-                            parser_class,
+
+                        # Filter attributes to match device's actual capabilities
+                        schema.filter_attributes(propertyList)
+
+                        # Ensure power consumption attribute is always present
+                        schema.ensure_attribute(
+                            "f_power_consumption",
+                            DeviceAttribute(
+                                key="f_power_consumption",
+                                name="电量累积消耗值",
+                                attr_type="Number",
+                                step=1,
+                                read_write="R",
+                            ),
                         )
 
-                        # 手动实例化 parser
-                        parser = parser_class()
+                        # Remove zone2 attributes if not available on ATW devices
+                        if (
+                            schema.device_type == "035"
+                            and device.status.get("f_zone2_select") == "0"
+                        ):
+                            schema.remove_attribute("f_zone2water_temp2")
+                            schema.remove_attribute("t_zone2water_settemp2")
+
+                        self.parsers[device.device_id] = schema
                         _LOGGER.debug(
-                            "Static data for parser instance %s: %s: %s",
-                            deviceTypeCode,
-                            deviceFeatureCode,
-                            parser,
+                            "Schema %s-%s for %s: %s",
+                            schema.device_type,
+                            schema.feature_code,
+                            device.device_id,
+                            list(schema.attributes.keys()),
                         )
 
-                        if isinstance(parser, BaseBeanParser):
-                            filtered_parser = self.create_filtered_parser(
-                                parser, propertyList
-                            )
-                            self.parsers[device.device_id] = filtered_parser
-                        elif isinstance(parser, SplitWater035699Parser):
-                            if isinstance(parser, SplitWater035699Parser):
-                                # 判断有没有温区2
-                                if device.status.get("f_zone2_select") == "0":
-                                    # 创建一个新的 parser 对象
-                                    new_parser = SplitWater035699Parser()
-
-                                    # 复制除了 f_zone2water_temp2 和 t_zone2water_settemp2 之外的所有字段
-                                    for (
-                                        key,
-                                        value,
-                                    ) in parser.attributes.items():
-                                        if key not in [
-                                            "f_zone2water_temp2",
-                                            "t_zone2water_settemp2",
-                                        ]:
-                                            new_parser.attributes[key] = value
-                                    parser = new_parser
-
-                            self.parsers[device.device_id] = parser
-                            stored_parser = self.parsers.get(device.device_id)
-                            _LOGGER.debug(
-                                "三联供设备解析字段 %s:%s",
-                                device.device_id,
-                                stored_parser.attributes
-                                if stored_parser
-                                else None,
-                            )
-                        elif isinstance(parser, Humidity007Parser):
-                            filtered_parser = self.create_humidity_parser(
-                                parser, propertyList
-                            )
-                            self.parsers[device.device_id] = filtered_parser
-                        elif isinstance(parser, Split006299Parser):
-                            self.parsers[device.device_id] = parser
-                        else:
-                            _LOGGER.error(
-                                "Parser is not an instance of BaseBeanParser"
-                            )
-                            continue
-
-                        # 判断是否有电量功能
-                        has_power = False
+                        # Detect power consumption capability
                         property_keys = {
                             prop.get("propertyKey")
                             for prop in propertyList
                             if "propertyKey" in prop
                         }
-                        if deviceTypeCode == "009":  # 分体空调
-                            if "99" not in deviceFeatureCode:
-                                _LOGGER.debug(
-                                    "009Ddevice feature code is :%s,and status = :%s",
-                                    deviceFeatureCode,
-                                    property_keys,
-                                )
-                                target_keys = {
-                                    "f_power_display",
-                                    "f_cool_qvalue",
-                                    "f_heat_qvalue",
-                                }
-                                if target_keys & property_keys:
-                                    has_power = True
-                            else:
-                                _LOGGER.debug(
-                                    "009Ddevice feature code is :%s,and static_data = :%s",
-                                    deviceFeatureCode,
-                                    self.static_data[device.device_id],
-                                )
-                                if (
-                                    self.static_data[device.device_id].get(
-                                        "Power_function"
-                                    )
-                                    == "1"
-                                    or self.static_data.get(
-                                        "f_cool_or_heat_qvalue"
-                                    )
-                                    == "1"
-                                ):
-                                    has_power = True
-                        elif deviceTypeCode in ["008", "006"]:  # 窗机 移动空调
-                            if "99" not in deviceFeatureCode:
-                                _LOGGER.debug(
-                                    "008 006Ddevice feature code is :%s,and status = :%s",
-                                    deviceFeatureCode,
-                                    property_keys,
-                                )
-                                if "f_power_display" in property_keys:
-                                    has_power = True
-                            else:
-                                _LOGGER.debug(
-                                    "008 006Ddevice feature code is :%s,and static_data = :%s",
-                                    deviceFeatureCode,
-                                    self.static_data[device.device_id],
-                                )
-                                if (
-                                    self.static_data[device.device_id].get(
-                                        "Power_function"
-                                    )
-                                    == "1"
-                                ):
-                                    has_power = True
-
-                        elif deviceTypeCode == "007":  # 除湿机
-                            if "99" not in deviceFeatureCode:
-                                _LOGGER.debug(
-                                    "007Ddevice feature code is :%s,and status = :%s",
-                                    deviceFeatureCode,
-                                    property_keys,
-                                )
-                                if "f_power_display" in property_keys:
-                                    has_power = True
-                            else:
-                                _LOGGER.debug(
-                                    "007Ddevice feature code is :%s,and static_data = :%s",
-                                    deviceFeatureCode,
-                                    self.static_data[device.device_id],
-                                )
-                                if (
-                                    self.static_data[device.device_id].get(
-                                        "Power_function"
-                                    )
-                                    == "1"
-                                ):
-                                    has_power = True
-                        else:
-                            _LOGGER.debug(
-                                "Ddevice feature code is :%s,and status = :%s",
-                                deviceFeatureCode,
-                                property_keys,
-                            )
-                            target_keys = {
-                                "f_power_display",
-                                "f_cool_qvalue",
-                                "f_heat_qvalue",
-                            }
-                            if target_keys & property_keys:
-                                has_power = True
-
-                            else:
-                                if "99" not in deviceFeatureCode:
-                                    _LOGGER.debug(
-                                        "Ddevice feature code is :%s,and status = :%s and has_power:%s",
-                                        deviceFeatureCode,
-                                        device.status,
-                                        "f_power_display" in device.status,
-                                    )
-                                    if "f_power_display" in device.status:
-                                        has_power = True
-                                else:
-                                    _LOGGER.debug(
-                                        "Ddevice feature code is :%s,and static_data = :%s",
-                                        deviceFeatureCode,
-                                        self.static_data,
-                                    )
-                                    if (
-                                        self.static_data.get("Power_function")
-                                        == 1
-                                        or self.static_data.get(
-                                            "Power_detection"
-                                        )
-                                        == 1
-                                    ):
-                                        has_power = True
+                        has_power = self._detect_power_support(
+                            deviceFeatureCode,
+                            property_keys,
+                            self.static_data.get(device.device_id, {}),
+                        )
 
                         if has_power:
                             current_date = datetime.now().date().isoformat()
@@ -845,197 +702,26 @@ class HisenseApiClient:
             raise HisenseApiError(f"Error communicating with API: {err}")
 
     @staticmethod
-    def create_humidity_parser(
-        base_parser: Humidity007Parser, propertyList: list
-    ) -> Humidity007Parser:
-        # 获取Humidity007Parser的attributes字典
-        original_attributes = base_parser.attributes
+    def _detect_power_support(
+        feature_code: str,
+        property_keys: set[str],
+        static_data: dict,
+    ) -> bool:
+        """Detect if a device supports power consumption monitoring.
 
-        # 确保 original_attributes 是一个字典
-        if not isinstance(original_attributes, dict):
-            _LOGGER.error(
-                "original_attributes is not a dictionary: %s",
-                original_attributes,
-            )
-            return Humidity007Parser()
+        Non-99 feature codes: power keys present in API property list.
+        99 feature codes: capability flags in static data.
+        """
+        _POWER_KEYS = {"f_power_display", "f_cool_qvalue", "f_heat_qvalue"}
 
-        # 提取 propertyKey 形成一个新的列表
-        property_keys = [
-            prop.get("propertyKey")
-            for prop in propertyList
-            if isinstance(prop, dict) and "propertyKey" in prop
-        ]
+        if "99" not in feature_code:
+            return bool(_POWER_KEYS & property_keys)
 
-        # 调试 property_keys 的内容
-        _LOGGER.debug("property_keys content: %s", property_keys)
-
-        # 确保 property_keys 是一个可迭代的可哈希类型
-        if not isinstance(property_keys, (list, set)):
-            _LOGGER.error(
-                "property_keys is not a list or set: %s", property_keys
-            )
-            return Humidity007Parser()
-
-        # 确保 property_keys 中的元素是可哈希的类型
-        if any(
-            not isinstance(item, (str, int, float, tuple))
-            for item in property_keys
-        ):
-            _LOGGER.error(
-                "property_keys contains unhashable types: %s", property_keys
-            )
-            return Humidity007Parser()
-
-        # 创建一个新的attributes字典，只包含交集中的DeviceAttribute
-        filtered_attributes = {}
-        for key in property_keys:
-            if key in original_attributes:
-                attribute = original_attributes[key]
-                # 更新 value_range
-                for prop in propertyList:
-                    if prop.get("propertyKey") == key:
-                        property_value_list = prop.get("propertyValueList")
-                        if property_value_list:
-                            attribute.value_range = property_value_list
-                            break
-
-                # 过滤 value_map
-                if attribute.value_map:
-                    # 将 property_value_list_keys 转换为集合
-                    property_value_list_keys = set(
-                        property_value_list.split(",")
-                    )
-
-                    # 确保 value_map_keys 是一个集合
-                    value_map_keys = set(attribute.value_map.keys())
-
-                    # 使用 intersection 方法计算交集
-                    filtered_value_map = {
-                        k: attribute.value_map[k]
-                        for k in value_map_keys.intersection(
-                            property_value_list_keys
-                        )
-                    }
-                    attribute.value_map = filtered_value_map
-
-                filtered_attributes[key] = attribute
-
-        _LOGGER.debug(
-            "除湿机filtered_attributes content: %s", filtered_attributes
+        return (
+            static_data.get("Power_function") in ("1", 1)
+            or static_data.get("f_cool_or_heat_qvalue") in ("1", 1)
+            or static_data.get("Power_detection") in ("1", 1)
         )
-        # 创建一个新的Humidity007Parser对象，并将filtered_attributes赋值给它的attributes属性
-        new_parser = Humidity007Parser()
-        _LOGGER.debug(
-            "除湿机Static data for filtered_parser111111 %s",
-            new_parser.attributes,
-        )
-        new_parser._attributes = filtered_attributes
-        _LOGGER.debug(
-            "除湿机Static data for filtered_parser222222 %s",
-            new_parser.attributes,
-        )
-        return new_parser
-
-    @staticmethod
-    def create_filtered_parser(
-        base_parser: BaseDeviceParser, propertyList: list
-    ) -> BaseBeanParser:
-        # 获取BaseBeanParser的attributes字典
-        original_attributes = base_parser.attributes
-
-        # 确保 original_attributes 是一个字典
-        if not isinstance(original_attributes, dict):
-            _LOGGER.error(
-                "original_attributes is not a dictionary: %s",
-                original_attributes,
-            )
-            return BaseBeanParser()
-
-        # 提取 propertyKey 形成一个新的列表
-        property_keys = [
-            prop.get("propertyKey")
-            for prop in propertyList
-            if isinstance(prop, dict) and "propertyKey" in prop
-        ]
-
-        # 调试 property_keys 的内容
-        _LOGGER.debug("property_keys content: %s", property_keys)
-
-        # 确保 property_keys 是一个可迭代的可哈希类型
-        if not isinstance(property_keys, (list, set)):
-            _LOGGER.error(
-                "property_keys is not a list or set: %s", property_keys
-            )
-            return BaseBeanParser()
-
-        # 确保 property_keys 中的元素是可哈希的类型
-        if any(
-            not isinstance(item, (str, int, float, tuple))
-            for item in property_keys
-        ):
-            _LOGGER.error(
-                "property_keys contains unhashable types: %s", property_keys
-            )
-            return BaseBeanParser()
-
-        # 创建一个新的attributes字典，只包含交集中的DeviceAttribute
-        filtered_attributes = {}
-        for key in property_keys:
-            if key in original_attributes:
-                attribute = original_attributes[key]
-                # 更新 value_range
-                for prop in propertyList:
-                    if prop.get("propertyKey") == key:
-                        property_value_list = prop.get("propertyValueList")
-                        if property_value_list:
-                            attribute.value_range = property_value_list
-                            break
-
-                # 过滤 value_map
-                if attribute.value_map:
-                    # 将 property_value_list_keys 转换为集合
-                    property_value_list_keys = set(
-                        property_value_list.split(",")
-                    )
-
-                    # 确保 value_map_keys 是一个集合
-                    value_map_keys = set(attribute.value_map.keys())
-
-                    # 使用 intersection 方法计算交集
-                    filtered_value_map = {
-                        k: attribute.value_map[k]
-                        for k in value_map_keys.intersection(
-                            property_value_list_keys
-                        )
-                    }
-                    attribute.value_map = filtered_value_map
-
-                filtered_attributes[key] = attribute
-                # 新增：强制添加f_power_consumption字段
-                if "f_power_consumption" not in filtered_attributes:
-                    # 创建DeviceAttribute实例
-                    filtered_attributes["f_power_consumption"] = (
-                        DeviceAttribute(
-                            key="f_power_consumption",
-                            name="电量累积消耗值",
-                            attr_type="Number",
-                            step=1,
-                            read_write="R",
-                        )
-                    )
-                    _LOGGER.debug(
-                        "强制添加了f_power_consumption字段到解析器:%s"
-                    )
-
-        _LOGGER.debug("filtered_attributes content: %s", filtered_attributes)
-        # 创建一个新的BaseBeanParser对象，并将filtered_attributes赋值给它的attributes属性
-        new_parser = BaseBeanParser()
-        _LOGGER.debug(
-            "Static data for filtered_parserqqqqqq %s", new_parser.attributes
-        )
-        new_parser._attributes = filtered_attributes
-
-        return new_parser
 
     async def async_setup_websocket(self) -> None:
         """Set up WebSocket connection."""

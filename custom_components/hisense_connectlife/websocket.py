@@ -84,7 +84,7 @@ class HisenseWebSocket:
                     "queryType": 2,
                 },
             )
-            notification_info = NotificationInfo.from_json(response)
+            notification_info = NotificationInfo.model_validate(response)
             _LOGGER.debug(
                 "Received notification info - Server: %s:%s",
                 notification_info.push_server_ip

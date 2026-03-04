@@ -106,6 +106,16 @@ class StatusKey:
     ECO = "t_eco"  # 8°加热
     EIGHT_HEAT = "t_8_heat"
     ENERGY = "f_electricity"  # Changed to match actual API response
+    VOLTAGE = "f_votage"  # 电压值
+    POWER_DISPLAY = "f_power_display"  # 电功率值
+    BEEP = "t_beep"  # 蜂鸣器开关
+    DIMMER = "t_dimmer"  # 背景灯控制
+    PURIFY = "t_purify"  # 净化功能
+    FRESH_AIR = "t_fresh_air"  # 新风功能
+    TMS = "t_tms"  # AI功能
+    SLEEP = "t_sleep"  # 睡眠模式
+    FANSPEED_CV = "t_fanspeedCV"  # 无极调速
+    TEMP_COMPENSATE = "t_temp_compensate"  # AI温度补偿
     WATER_TEMP = "t_water_temp"
     ZONE_TEMP = "t_zone_temp"
     F_E_INTEMP = "f_e_intemp"

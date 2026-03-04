@@ -16,7 +16,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, MIN_TEMP_WATER, MAX_TEMP_WATER
+from .const import DOMAIN, MIN_TEMP_WATER, MAX_TEMP_WATER, StatusKey
 from .coordinator import HisenseACPluginDataUpdateCoordinator
 from .entity_descriptions import NumberEntityConfig
 from .models import DeviceInfo as HisenseDeviceInfo
@@ -48,6 +48,30 @@ NUMBER_TYPES = {
         max_value=32,
         step=0.5,
         description="Set 2温区设置值",
+    ),
+    "t_fanspeedCV": NumberEntityConfig(
+        key=StatusKey.FANSPEED_CV,
+        name="Fan Speed (Stepless)",
+        icon="mdi:fan",
+        device_class=NumberDeviceClass.POWER_FACTOR,
+        mode=NumberMode.SLIDER,
+        unit="%",
+        min_value=0,
+        max_value=100,
+        step=1,
+        description="Stepless fan speed control",
+    ),
+    "t_temp_compensate": NumberEntityConfig(
+        key=StatusKey.TEMP_COMPENSATE,
+        name="AI Temp Offset",
+        icon="mdi:thermometer-plus",
+        device_class=NumberDeviceClass.TEMPERATURE,
+        mode=NumberMode.SLIDER,
+        unit="°C",
+        min_value=0,
+        max_value=15,
+        step=1,
+        description="AI temperature compensation value",
     ),
 }
 
@@ -212,6 +236,11 @@ class HisenseNumber(CoordinatorEntity, NumberEntity):
 
     def _update_temperature_range(self):
         """Update the temperature range based on the current mode and feature_code."""
+        if self._number_type not in (
+            "t_zone1water_settemp1",
+            "t_zone2water_settemp2",
+        ):
+            return
         device = self.coordinator.get_device(self._device_id)
         if not device:
             return
@@ -270,17 +299,25 @@ class HisenseNumber(CoordinatorEntity, NumberEntity):
         if power_status != "1":
             _LOGGER.debug("设备已关机，实体不可用")
             return False
-        current_mode = self._device.get_status_value("t_work_mode")
-        # 判断自动模式
-        if current_mode in ["15", "3", "16"]:
-            _LOGGER.debug("设备处于自动模式，温度控制不可用")
-            return False
-
-        # 判断温区2在制冷或制冷+生活热水模式下是否禁用
-        if self._number_type == "t_zone2water_settemp2":
-            if current_mode in ["1", "5"]:  # 对应制冷和制冷+生活热水模式
-                _LOGGER.debug("当前模式 %s 禁用温区2控制", current_mode)
+        # AI Temp Offset only available when AI mode (t_tms) is on
+        if self._number_type == "t_temp_compensate":
+            tms = self._device.get_status_value("t_tms")
+            if tms != "1":
                 return False
+
+        # ATW zone temp specific restrictions
+        if self._number_type in (
+            "t_zone1water_settemp1",
+            "t_zone2water_settemp2",
+        ):
+            current_mode = self._device.get_status_value("t_work_mode")
+            if current_mode in ["15", "3", "16"]:
+                _LOGGER.debug("设备处于自动模式，温度控制不可用")
+                return False
+            if self._number_type == "t_zone2water_settemp2":
+                if current_mode in ["1", "5"]:
+                    _LOGGER.debug("当前模式 %s 禁用温区2控制", current_mode)
+                    return False
 
         return True
 
@@ -327,10 +364,11 @@ class HisenseNumber(CoordinatorEntity, NumberEntity):
                 _LOGGER.error("Value out of range: %s", value)
                 return
 
-            # Convert value to integer before sending to device
+            # Send as integer string when step is whole number
+            send_value = str(int(value)) if value == int(value) else str(value)
             await self.coordinator.async_control_device(
                 puid=self._device_id,
-                properties={self._number_key: str(value)},
+                properties={self._number_key: send_value},
             )
         except Exception as err:
             _LOGGER.error("Failed to set %s: %s", self._attr_name, err)
