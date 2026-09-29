@@ -196,12 +196,12 @@ OPERATION_MODE_VACATION = "vacation"
 # Fan Modes
 FAN_AUTO = "auto"
 FAN_ULTRA_LOW = "ultra_low"
-SFAN_ULTRA_LOW = "中低"
+SFAN_ULTRA_LOW = "Middle Low"
 FAN_LOW = "low"
 FAN_MEDIUM = "medium"
 FAN_HIGH = "high"
 FAN_ULTRA_HIGH = "ultra_high"
-SFAN_ULTRA_HIGH = "中高"
+SFAN_ULTRA_HIGH = "Middle High"
 
 
 # Message Types

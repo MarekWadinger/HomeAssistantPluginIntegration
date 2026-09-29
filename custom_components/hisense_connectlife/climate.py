@@ -325,7 +325,7 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
                 if "自动" == value or "auto" == value.lower():
                     fan_modes.append(FAN_AUTO)
                     self.hasAuto = True
-                elif "超低" == value or "ultra low" == value.lower():
+                elif value in ("超低", "中低") or "ultra low" == value.lower():
                     fan_modes.append(SFAN_ULTRA_LOW)
                 elif "低" == value or "low" == value.lower():
                     fan_modes.append(FAN_LOW)
@@ -337,7 +337,9 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
                     fan_modes.append(FAN_MEDIUM)
                 elif "高" == value or "high" == value.lower():
                     fan_modes.append(FAN_HIGH)
-                elif "超高" == value or "ultra high" == value.lower():
+                elif (
+                    value in ("超高", "中高") or "ultra high" == value.lower()
+                ):
                     fan_modes.append(SFAN_ULTRA_HIGH)
                 else:
                     # Use the Chinese description as the mode name
@@ -507,7 +509,10 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
                 # Map to standard fan modes based on description
                 if "自动" == fan_desc or "auto" == fan_desc.lower():
                     return FAN_AUTO
-                elif "超低" == fan_desc or "ultra low" == fan_desc.lower():
+                elif (
+                    fan_desc in ("超低", "中低")
+                    or "ultra low" == fan_desc.lower()
+                ):
                     return SFAN_ULTRA_LOW
                 elif "低" == fan_desc or "low" == fan_desc.lower():
                     return FAN_LOW
@@ -519,7 +524,10 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
                     return FAN_MEDIUM
                 elif "高" == fan_desc or "high" == fan_desc.lower():
                     return FAN_HIGH
-                elif "超高" == fan_desc or "ultra high" == fan_desc.lower():
+                elif (
+                    fan_desc in ("超高", "中高")
+                    or "ultra high" == fan_desc.lower()
+                ):
                     return SFAN_ULTRA_HIGH
                 else:
                     # Use the Chinese description as the mode name
@@ -761,13 +769,20 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
                         ):
                             hisense_fan_mode = key
                             break
-                        elif fan_mode == FAN_ULTRA_LOW and (
-                            "超低" in value or "ultra low" in value.lower()
+                        elif fan_mode in (FAN_ULTRA_LOW, SFAN_ULTRA_LOW) and (
+                            "超低" in value
+                            or "中低" in value
+                            or "ultra low" in value.lower()
                         ):
                             hisense_fan_mode = key
                             break
-                        elif fan_mode == FAN_ULTRA_HIGH and (
-                            "超高" in value or "ultra high" in value.lower()
+                        elif fan_mode in (
+                            FAN_ULTRA_HIGH,
+                            SFAN_ULTRA_HIGH,
+                        ) and (
+                            "超高" in value
+                            or "中高" in value
+                            or "ultra high" in value.lower()
                         ):
                             hisense_fan_mode = key
                             break
