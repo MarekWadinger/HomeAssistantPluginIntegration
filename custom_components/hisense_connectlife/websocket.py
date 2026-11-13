@@ -254,7 +254,11 @@ class HisenseWebSocket:
 
             # Step 4: Connect WebSocket
             self._closing = False
-            self._task = self.hass.async_create_task(self._connect_ws())
+            # Background task: HA awaits plain tasks at startup, and this loop never ends,
+            # so a plain task held HA in "starting" for ~5 minutes.
+            self._task = self.hass.async_create_background_task(
+                self._connect_ws(), name="hisense_connectlife_ws"
+            )
             _LOGGER.debug("WebSocket connection task created")
 
         except Exception as err:
