@@ -746,26 +746,28 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
             if hasattr(self, "_parser") and self._parser:
                 fan_attr = self._parser.attributes.get(StatusKey.FAN_SPEED)
                 if fan_attr and fan_attr.value_map:
+                    # Exact matches, as in the read path: a substring test made
+                    # "low" and "medium" hit 中低 (value 5) before 低 / 中.
                     for key, value in fan_attr.value_map.items():
                         if fan_mode == FAN_AUTO and (
-                            "自动" in value or "auto" in value.lower()
+                            "自动" == value or "auto" == value.lower()
                         ):
                             hisense_fan_mode = key
                             break
                         elif fan_mode == FAN_LOW and (
-                            "低" in value or "low" in value.lower()
+                            "低" == value or "low" == value.lower()
                         ):
                             hisense_fan_mode = key
                             break
                         elif fan_mode == FAN_MEDIUM and (
-                            "中" in value
-                            or "medium" in value.lower()
-                            or "med" in value.lower()
+                            "中" == value
+                            or "medium" == value.lower()
+                            or "med" == value.lower()
                         ):
                             hisense_fan_mode = key
                             break
                         elif fan_mode == FAN_HIGH and (
-                            "高" in value or "high" in value.lower()
+                            "高" == value or "high" == value.lower()
                         ):
                             hisense_fan_mode = key
                             break
