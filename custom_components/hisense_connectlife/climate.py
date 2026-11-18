@@ -58,6 +58,28 @@ HA_MODE_TO_STR = {
 # Reverse mapping
 STR_TO_HA_MODE = {v: k for k, v in HA_MODE_TO_STR.items()}
 
+# Vane positions of the 199 split unit, matched to a bus capture of the AC's
+# own status (hisense repo, docs/serial-protocol.md). Its t_up_down and
+# t_left_right stay "0" even while the vanes swing.
+# t_swing_angle: 0 swing, 2..7 positions 1 (lowest) .. 6 (highest); 1 not seen.
+VANE_VERTICAL = {
+    "swing": "0",
+    "1 (lowest)": "2",
+    "2": "3",
+    "3": "4",
+    "4": "5",
+    "5": "6",
+    "6 (highest)": "7",
+}
+# t_swing_direction, as seen facing the AC; 5 not seen.
+VANE_HORIZONTAL = {
+    "swing": "3",
+    "left": "4",
+    "middle": "0",
+    "right": "1",
+    "both sides": "2",
+}
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -147,6 +169,9 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
         self._cached_hvac_mode = HVACMode.OFF
         self._cached_fan_mode = None
         self._cached_swing_mode = SWING_OFF
+        self._cached_swing_horizontal_mode = None
+        # True when the vanes are set by position (VANE_VERTICAL/HORIZONTAL).
+        self._vanes = False
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, device.device_id)},
             name=device.name,
@@ -360,6 +385,15 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
         """Set up available swing modes based on device capabilities."""
         if not self._parser:
             return
+        if (
+            self._current_feature_code == "199"
+            and self._parser.attributes.get("t_swing_angle")
+            and self._parser.attributes.get("t_swing_direction")
+        ):
+            self._vanes = True
+            self._attr_swing_modes = list(VANE_VERTICAL)
+            self._attr_swing_horizontal_modes = list(VANE_HORIZONTAL)
+            return
         left_and_right = "1"
         upper_and_lower = "1"
         if self.static_data:
@@ -557,6 +591,11 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
         """Return the swing setting."""
         if not self._device:
             return None
+        if self._vanes:
+            angle = str(self._device.get_status_value("t_swing_angle"))
+            return next(
+                (k for k, v in VANE_VERTICAL.items() if v == angle), None
+            )
         _LOGGER.debug(
             "风向改变 %s with status: %s",
             self._current_feature_code,
@@ -590,6 +629,38 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
         return SWING_OFF
 
     @property
+    def swing_horizontal_mode(self) -> str | None:
+        """Return the horizontal vane position (199 units only)."""
+        if (
+            time.time() - self._last_command_time < self.wait_time
+            and self._cached_swing_horizontal_mode is not None
+        ):
+            return self._cached_swing_horizontal_mode
+        if not self._vanes or not self._device:
+            return None
+        direction = str(self._device.get_status_value("t_swing_direction"))
+        return next(
+            (k for k, v in VANE_HORIZONTAL.items() if v == direction), None
+        )
+
+    async def async_set_swing_horizontal_mode(
+        self, swing_horizontal_mode: str
+    ) -> None:
+        """Set the horizontal vane position."""
+        self._cached_swing_horizontal_mode = swing_horizontal_mode
+        self._last_command_time = time.time()
+        self.async_write_ha_state()
+        try:
+            await self.coordinator.async_control_device(
+                puid=self._device_id,
+                properties={
+                    "t_swing_direction": VANE_HORIZONTAL[swing_horizontal_mode]
+                },
+            )
+        except Exception as err:
+            _LOGGER.error("Failed to set horizontal swing mode: %s", err)
+
+    @property
     def supported_features(self) -> int:
         """Return the list of supported features."""
         features = (
@@ -607,6 +678,8 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
         # 新增逻辑：如果风速模式数量<=1（仅自动模式），则隐藏风速设置
         if len(self._attr_swing_modes or []) <= 1:
             features &= ~ClimateEntityFeature.SWING_MODE
+        if self._vanes:
+            features |= ClimateEntityFeature.SWING_HORIZONTAL_MODE
         # 根据当前模式决定是否支持目标温度设置
         current_mode = self.hvac_mode
         if current_mode not in [HVACMode.COOL, HVACMode.HEAT]:
@@ -818,6 +891,15 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
         self._last_command_time = time.time()
         self.async_write_ha_state()
         """Set new target swing operation."""
+        if self._vanes:
+            try:
+                await self.coordinator.async_control_device(
+                    puid=self._device_id,
+                    properties={"t_swing_angle": VANE_VERTICAL[swing_mode]},
+                )
+            except Exception as err:
+                _LOGGER.error("Failed to set swing mode: %s", err)
+            return
         try:
             properties = {}
 
