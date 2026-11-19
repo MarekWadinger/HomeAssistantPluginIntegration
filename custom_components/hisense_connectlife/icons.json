@@ -1,0 +1,32 @@
+{
+    "entity": {
+        "climate": {
+            "ac": {
+                "state_attributes": {
+                    "swing_mode": {
+                        "default": "mdi:arrow-up-down",
+                        "state": {
+                            "swing": "mdi:arrow-oscillating",
+                            "position_1": "mdi:numeric-1-circle-outline",
+                            "position_2": "mdi:numeric-2-circle-outline",
+                            "position_3": "mdi:numeric-3-circle-outline",
+                            "position_4": "mdi:numeric-4-circle-outline",
+                            "position_5": "mdi:numeric-5-circle-outline",
+                            "position_6": "mdi:numeric-6-circle-outline"
+                        }
+                    },
+                    "swing_horizontal_mode": {
+                        "default": "mdi:arrow-left-right",
+                        "state": {
+                            "swing": "mdi:arrow-oscillating",
+                            "straight": "mdi:arrow-up",
+                            "all_left": "mdi:arrow-top-left",
+                            "right": "mdi:arrow-top-right",
+                            "both_sides": "mdi:arrow-split-vertical"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

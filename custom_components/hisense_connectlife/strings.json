@@ -34,5 +34,33 @@
             "refresh_failed": "Failed to refresh device list",
             "token_refresh_failed": "Failed to refresh token"
         }
+    },
+    "entity": {
+        "climate": {
+            "ac": {
+                "state_attributes": {
+                    "swing_mode": {
+                        "state": {
+                            "swing": "Swing",
+                            "position_1": "Position 1",
+                            "position_2": "Position 2",
+                            "position_3": "Position 3",
+                            "position_4": "Position 4",
+                            "position_5": "Position 5",
+                            "position_6": "Position 6"
+                        }
+                    },
+                    "swing_horizontal_mode": {
+                        "state": {
+                            "swing": "Swing",
+                            "straight": "Straight",
+                            "all_left": "All Left",
+                            "right": "Right",
+                            "both_sides": "Both Sides"
+                        }
+                    }
+                }
+            }
+        }
     }
 }

@@ -61,23 +61,25 @@ STR_TO_HA_MODE = {v: k for k, v in HA_MODE_TO_STR.items()}
 # Vane positions of the 199 split unit, matched to a bus capture of the AC's
 # own status (hisense repo, docs/serial-protocol.md). Its t_up_down and
 # t_left_right stay "0" even while the vanes swing.
-# t_swing_angle: 0 swing, 2..7 positions 1 (lowest) .. 6 (highest); 1 not seen.
+# Keys are translation keys: the shown names (as in the ConnectLife app's
+# Airflow screen) are in translations/, the icons in icons.json.
+# position_1 points lowest.
 VANE_VERTICAL = {
     "swing": "0",
-    "1 (lowest)": "2",
-    "2": "3",
-    "3": "4",
-    "4": "5",
-    "5": "6",
-    "6 (highest)": "7",
+    "position_1": "2",
+    "position_2": "3",
+    "position_3": "4",
+    "position_4": "5",
+    "position_5": "6",
+    "position_6": "7",
 }
-# t_swing_direction, as seen facing the AC; 5 not seen.
+# Left and right as seen facing the AC.
 VANE_HORIZONTAL = {
     "swing": "3",
-    "left": "4",
-    "middle": "0",
+    "straight": "0",
+    "all_left": "4",
     "right": "1",
-    "both sides": "2",
+    "both_sides": "2",
 }
 
 
@@ -140,7 +142,8 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
 
     coordinator: HisenseACPluginDataUpdateCoordinator
     _attr_has_entity_name = False
-    _attr_temperature_unit = UnitOfTemperature.CELSIUS
+    _attr_native_temperature_unit = UnitOfTemperature.CELSIUS
+    _attr_translation_key = "ac"
     _attr_min_temp = MIN_TEMP
     _attr_max_temp = MAX_TEMP
     _attr_target_temperature_step = 1
@@ -259,7 +262,7 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
             else:
                 min_temp = MIN_TEMP
                 max_temp = MAX_TEMP
-            self._attr_temperature_unit = UnitOfTemperature.CELSIUS
+            self._attr_native_temperature_unit = UnitOfTemperature.CELSIUS
         else:
             # 使用第二个范围
             if len(temperature_ranges) > 1:
@@ -267,7 +270,7 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
             else:
                 min_temp = MIN_TEMP
                 max_temp = MAX_TEMP
-            self._attr_temperature_unit = UnitOfTemperature.FAHRENHEIT
+            self._attr_native_temperature_unit = UnitOfTemperature.FAHRENHEIT
         # 设置属性
         self._attr_min_temp = min_temp
         self._attr_max_temp = max_temp
@@ -291,6 +294,10 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
 
         if not hasattr(self, "_attr_swing_modes"):
             self._attr_swing_modes = [SWING_OFF, SWING_VERTICAL]
+
+        # _attr_fan_modes is narrowed per HVAC mode in _refresh(); keep them all.
+        self._all_fan_modes = list(self._attr_fan_modes or [])
+        self._refresh()
 
     def _setup_hvac_modes(self):
         """Set up available HVAC modes based on device capabilities."""
@@ -451,24 +458,21 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
         """Return if entity is available."""
         return self._device is not None and self._device.is_online
 
-    @property
-    def current_temperature(self) -> float | None:
+    def _read_current_temperature(self) -> float | None:
         """Return the current temperature."""
         if not self._device:
             return None
         temp = self._device.get_status_value(StatusKey.TEMPERATURE)
         return float(temp) if temp else None
 
-    @property
-    def target_temperature(self) -> float | None:
+    def _read_target_temperature(self) -> float | None:
         """Return the target temperature."""
         if not self._device:
             return None
         temp = self._device.get_status_value(StatusKey.TARGET_TEMP)
         return float(temp) if temp else None
 
-    @property
-    def hvac_mode(self) -> HVACMode:
+    def _read_hvac_mode(self) -> HVACMode | None:
         if time.time() - self._last_command_time < self.wait_time:
             return self._cached_hvac_mode
         """Return hvac operation mode."""
@@ -512,8 +516,7 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
         ha_mode = STR_TO_HA_MODE.get(mode)
         return HVACMode(ha_mode) if ha_mode else HVACMode.AUTO
 
-    @property
-    def fan_mode(self) -> str | None:
+    def _read_fan_mode(self) -> str | None:
         if (
             time.time() - self._last_command_time < self.wait_time
             and self._cached_fan_mode is not None
@@ -570,10 +573,9 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
         # Fallback to the raw value
         return fan_mode
 
-    @property
-    def fan_modes(self):
-        modes = list(self._attr_fan_modes or [])
-        if self.hvac_mode == HVACMode.FAN_ONLY:
+    def _read_fan_modes(self) -> list[str]:
+        modes = list(self._all_fan_modes)
+        if self._read_hvac_mode() == HVACMode.FAN_ONLY:
             if FAN_AUTO in modes:
                 modes.remove(FAN_AUTO)
         else:
@@ -581,8 +583,7 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
                 modes.append(FAN_AUTO)
         return modes
 
-    @property
-    def swing_mode(self) -> str | None:
+    def _read_swing_mode(self) -> str | None:
         if (
             time.time() - self._last_command_time < self.wait_time
             and self._cached_swing_mode is not None
@@ -628,8 +629,7 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
         # Default to off if we can't determine the mode
         return SWING_OFF
 
-    @property
-    def swing_horizontal_mode(self) -> str | None:
+    def _read_swing_horizontal_mode(self) -> str | None:
         """Return the horizontal vane position (199 units only)."""
         if (
             time.time() - self._last_command_time < self.wait_time
@@ -649,6 +649,7 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
         """Set the horizontal vane position."""
         self._cached_swing_horizontal_mode = swing_horizontal_mode
         self._last_command_time = time.time()
+        self._refresh()
         self.async_write_ha_state()
         try:
             await self.coordinator.async_control_device(
@@ -660,8 +661,7 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
         except Exception as err:
             _LOGGER.error("Failed to set horizontal swing mode: %s", err)
 
-    @property
-    def supported_features(self) -> int:
+    def _read_supported_features(self) -> ClimateEntityFeature:
         """Return the list of supported features."""
         features = (
             ClimateEntityFeature.TARGET_TEMPERATURE
@@ -681,7 +681,7 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
         if self._vanes:
             features |= ClimateEntityFeature.SWING_HORIZONTAL_MODE
         # 根据当前模式决定是否支持目标温度设置
-        current_mode = self.hvac_mode
+        current_mode = self._read_hvac_mode()
         if current_mode not in [HVACMode.COOL, HVACMode.HEAT]:
             features &= ~ClimateEntityFeature.TARGET_TEMPERATURE
 
@@ -720,8 +720,9 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
         self._cached_hvac_mode = hvac_mode
         self._cached_fan_mode = self.fan_mode
         self._cached_swing_mode = self.swing_mode
-        self._cached_target_temp = self.target_temperature
+        self._cached_target_temp = self.native_target_temperature
         self._last_command_time = time.time()
+        self._refresh()
         self.async_write_ha_state()
         """Set new target hvac mode."""
         if hvac_mode == HVACMode.OFF:
@@ -807,8 +808,9 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
         self._cached_fan_mode = fan_mode
         self._cached_hvac_mode = self.hvac_mode
         self._cached_swing_mode = self.swing_mode
-        self._cached_target_temp = self.target_temperature
+        self._cached_target_temp = self.native_target_temperature
         self._last_command_time = time.time()
+        self._refresh()
         self.async_write_ha_state()
         """Set new target fan mode."""
         try:
@@ -887,8 +889,9 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
         self._cached_swing_mode = swing_mode
         self._cached_hvac_mode = self.hvac_mode
         self._cached_fan_mode = self.fan_mode
-        self._cached_target_temp = self.target_temperature
+        self._cached_target_temp = self.native_target_temperature
         self._last_command_time = time.time()
+        self._refresh()
         self.async_write_ha_state()
         """Set new target swing operation."""
         if self._vanes:
@@ -984,4 +987,18 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
             return
         """仅在超时后处理协调器更新"""
         if time.time() - self._last_command_time >= self.wait_time:
+            self._refresh()
             super()._handle_coordinator_update()
+
+    def _refresh(self) -> None:
+        """Copy the device status into HA's _attr_* fields."""
+        self._attr_native_current_temperature = (
+            self._read_current_temperature()
+        )
+        self._attr_native_target_temperature = self._read_target_temperature()
+        self._attr_hvac_mode = self._read_hvac_mode()
+        self._attr_fan_mode = self._read_fan_mode()
+        self._attr_fan_modes = self._read_fan_modes()
+        self._attr_swing_mode = self._read_swing_mode()
+        self._attr_swing_horizontal_mode = self._read_swing_horizontal_mode()
+        self._attr_supported_features = self._read_supported_features()
