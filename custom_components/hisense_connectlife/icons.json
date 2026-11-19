@@ -6,23 +6,23 @@
                     "swing_mode": {
                         "default": "mdi:arrow-up-down",
                         "state": {
-                            "swing": "mdi:arrow-oscillating",
-                            "position_1": "mdi:numeric-1-circle-outline",
-                            "position_2": "mdi:numeric-2-circle-outline",
-                            "position_3": "mdi:numeric-3-circle-outline",
-                            "position_4": "mdi:numeric-4-circle-outline",
-                            "position_5": "mdi:numeric-5-circle-outline",
-                            "position_6": "mdi:numeric-6-circle-outline"
+                            "swing": "hisense:vertical_swing",
+                            "position_1": "hisense:vertical_position_1",
+                            "position_2": "hisense:vertical_position_2",
+                            "position_3": "hisense:vertical_position_3",
+                            "position_4": "hisense:vertical_position_4",
+                            "position_5": "hisense:vertical_position_5",
+                            "position_6": "hisense:vertical_position_6"
                         }
                     },
                     "swing_horizontal_mode": {
                         "default": "mdi:arrow-left-right",
                         "state": {
-                            "swing": "mdi:arrow-oscillating",
-                            "straight": "mdi:arrow-up",
-                            "all_left": "mdi:arrow-top-left",
-                            "right": "mdi:arrow-top-right",
-                            "both_sides": "mdi:arrow-split-vertical"
+                            "swing": "hisense:horizontal_swing",
+                            "straight": "hisense:horizontal_straight",
+                            "all_left": "hisense:horizontal_all_left",
+                            "right": "hisense:horizontal_right",
+                            "both_sides": "hisense:horizontal_both_sides"
                         }
                     }
                 }
