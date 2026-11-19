@@ -99,9 +99,11 @@ class HisenseACPluginDataUpdateCoordinator(
     async def async_refresh_device(self, device_id: str) -> None:
         """Manually refresh a specific device's status."""
         try:
-            if device_id not in self._devices:
-                _LOGGER.warning("Device %s not found", device_id)
+            # Commands pass the puid; _devices is keyed by device_id.
+            device = self.get_device(device_id)
+            if device is None:
                 return
+            device_id = device.device_id
 
             _LOGGER.debug("Manually refreshing device %s", device_id)
 
